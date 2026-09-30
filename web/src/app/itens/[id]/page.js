@@ -24,9 +24,15 @@ function DetalheDoItem() {
     const { usuario } = useAuth();
     const [item, setItem] = useState(null);
     const [eventos, setEventos] = useState([]);
+    const [setores, setSetores] = useState([]);
     const [editando, setEditando] = useState(false);
     const [descricao, setDescricao] = useState('');
     const [categoria, setCategoria] = useState('');
+
+    const [editandoMovimentacao, setEditandoMovimentacao] = useState(false);
+    const [setorSelecionado, setSetorSelecionado] = useState('');
+    const [situacaoSelecionada, setSituacaoSelecionada] = useState('bom');
+    const [salvandoMovimentacao, setSalvandoMovimentacao] = useState(false);
 
     const podeEditar = usuario?.papel === 'admin' || usuario?.papel === 'cadastrador';
 
@@ -37,16 +43,33 @@ function DetalheDoItem() {
         setEventos(historico);
         setDescricao(itemAtual.descricao);
         setCategoria(itemAtual.categoria ?? '');
+        setSetorSelecionado(itemAtual.setorAtualId ? String(itemAtual.setorAtualId) : '');
+        setSituacaoSelecionada(itemAtual.situacaoAtual ?? 'bom');
     }
 
     useEffect(() => {
         carregar();
+        api.listarSetores().then(setSetores).catch(() => {});
     }, [id]);
 
     async function salvarEdicao() {
         await api.atualizarItem(id, { descricao, categoria: categoria || null });
         setEditando(false);
         carregar();
+    }
+
+    async function salvarMovimentacao() {
+        setSalvandoMovimentacao(true);
+        try {
+            await api.registrarMovimentacao(id, {
+                setorNovoId: setorSelecionado || null,
+                situacaoNova: situacaoSelecionada,
+            });
+            setEditandoMovimentacao(false);
+            await carregar();
+        } finally {
+            setSalvandoMovimentacao(false);
+        }
     }
 
     if (!item) return <div className="loading-shell">Carregando...</div>;
@@ -87,26 +110,61 @@ function DetalheDoItem() {
             </div>
 
             <div className="card info-list">
-                <div className="info-row">
-                    <div className="info-row-label">Setor atual</div>
-                    <div className="info-row-value">{item.setorAtual?.nome ?? '—'}</div>
-                </div>
-                <div className="info-row">
-                    <div className="info-row-label">Situação</div>
-                    <div className="info-row-value">
-                        <span className={`badge badge-${item.situacaoAtual}`}>
-                            {ROTULOS_SITUACAO[item.situacaoAtual] ?? item.situacaoAtual}
-                        </span>
-                    </div>
-                </div>
-                <div className="info-row">
-                    <div className="info-row-label">Etiqueta</div>
-                    <div className="info-row-value">
-                        <span className={`badge ${item.etiquetaImpressa ? 'badge-bom' : 'badge-neutro'}`}>
-                            {item.etiquetaImpressa ? 'Impressa' : 'Pendente'}
-                        </span>
-                    </div>
-                </div>
+                {editandoMovimentacao ? (
+                    <>
+                        <div className="form-group">
+                            <label className="form-label">Setor</label>
+                            <select className="form-control" value={setorSelecionado} onChange={(e) => setSetorSelecionado(e.target.value)}>
+                                <option value="">Sem setor</option>
+                                {setores.map((s) => (
+                                    <option key={s.id} value={s.id}>{s.nome}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Situação</label>
+                            <select className="form-control" value={situacaoSelecionada} onChange={(e) => setSituacaoSelecionada(e.target.value)}>
+                                {Object.entries(ROTULOS_SITUACAO).map(([valor, rotulo]) => (
+                                    <option key={valor} value={valor}>{rotulo}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn-primary" onClick={salvarMovimentacao} disabled={salvandoMovimentacao}>
+                                {salvandoMovimentacao ? 'Salvando...' : 'Salvar'}
+                            </button>
+                            <button className="btn btn-secondary" onClick={() => setEditandoMovimentacao(false)} disabled={salvandoMovimentacao}>
+                                Cancelar
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="info-row">
+                            <div className="info-row-label">Setor atual</div>
+                            <div className="info-row-value">{item.setorAtual?.nome ?? '—'}</div>
+                        </div>
+                        <div className="info-row">
+                            <div className="info-row-label">Situação</div>
+                            <div className="info-row-value">
+                                <span className={`badge badge-${item.situacaoAtual}`}>
+                                    {ROTULOS_SITUACAO[item.situacaoAtual] ?? item.situacaoAtual}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="info-row">
+                            <div className="info-row-label">Etiqueta</div>
+                            <div className="info-row-value">
+                                <span className={`badge ${item.etiquetaImpressa ? 'badge-bom' : 'badge-neutro'}`}>
+                                    {item.etiquetaImpressa ? 'Impressa' : 'Pendente'}
+                                </span>
+                            </div>
+                        </div>
+                        <button className="btn btn-secondary btn-sm" style={{ marginTop: 12 }} onClick={() => setEditandoMovimentacao(true)}>
+                            Alterar setor / situação
+                        </button>
+                    </>
+                )}
             </div>
 
             <div className="section">

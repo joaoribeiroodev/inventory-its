@@ -51,6 +51,10 @@ export const api = {
     criarItem: (dados) => requisitar('/itens', { method: 'POST', body: JSON.stringify(dados) }),
     atualizarItem: (id, dados) =>
         requisitar(`/itens/${id}`, { method: 'PUT', body: JSON.stringify(dados) }),
+    // Registra mudança de setor e/ou situação (Bom/Ruim) do item,
+    // gerando um evento de movimentação no histórico.
+    registrarMovimentacao: (id, dados) =>
+        requisitar(`/itens/${id}/movimentar`, { method: 'POST', body: JSON.stringify(dados) }),
 
     // Exportação da lista de itens (relatório) em xlsx formatado,
     // respeitando os mesmos filtros usados na tela. Mesmo padrão de

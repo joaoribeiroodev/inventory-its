@@ -15,5 +15,6 @@ router.get('/:id/eventos', itens.listarHistorico);
 
 router.post('/', autorizar('admin', 'cadastrador'), itens.criar);
 router.put('/:id', autorizar('admin', 'cadastrador'), itens.atualizar);
+router.post('/:id/movimentar', itens.registrarMovimentacao);
 
 module.exports = router;
