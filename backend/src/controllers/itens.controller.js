@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const prisma = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
@@ -249,6 +250,51 @@ const atualizar = asyncHandler(async (req, res) => {
     res.json(item);
 });
 
+// POST /itens/:id/movimentar — registra mudança de setor e/ou
+// situação pelo painel web (equivalente ao que o app mobile faz
+// offline via fila de eventos, só que direto, já que o painel
+// sempre está online). Gera um EventoMovimentacao normal, então
+// entra no mesmo histórico e é compatível com a lógica de
+// recomputo usada pela sincronização do app.
+const registrarMovimentacao = asyncHandler(async (req, res) => {
+    const { setorNovoId, situacaoNova, observacao } = req.body;
+    const itemId = BigInt(req.params.id);
+
+    const item = await prisma.item.findUnique({ where: { id: itemId } });
+    if (!item) {
+        return res.status(404).json({ erro: 'Item não encontrado' });
+    }
+
+    if (setorNovoId === undefined && !situacaoNova) {
+        return res.status(400).json({ erro: 'Informe setorNovoId e/ou situacaoNova' });
+    }
+
+    await prisma.eventoMovimentacao.create({
+        data: {
+            uuidEvento: crypto.randomUUID(),
+            itemId,
+            usuarioId: BigInt(req.usuario.id),
+            setorAnteriorId: item.setorAtualId,
+            setorNovoId: setorNovoId ? BigInt(setorNovoId) : null,
+            situacaoAnterior: item.situacaoAtual,
+            situacaoNova: situacaoNova ?? null,
+            observacao: observacao ?? null,
+            timestampEvento: new Date(),
+        },
+    });
+
+    const atualizado = await prisma.item.update({
+        where: { id: itemId },
+        data: {
+            ...(setorNovoId !== undefined ? { setorAtualId: setorNovoId ? BigInt(setorNovoId) : null } : {}),
+            ...(situacaoNova ? { situacaoAtual: situacaoNova } : {}),
+        },
+        include: { setorAtual: true },
+    });
+
+    res.json(atualizado);
+});
+
 module.exports = {
     listar,
     exportarXlsx,
@@ -258,4 +304,5 @@ module.exports = {
     listarHistorico,
     criar,
     atualizar,
+    registrarMovimentacao,
 };
