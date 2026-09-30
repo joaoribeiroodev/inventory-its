@@ -36,7 +36,8 @@
         {
           "cameraPermission": "O app precisa da câmera para ler o QR Code das etiquetas."
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }
