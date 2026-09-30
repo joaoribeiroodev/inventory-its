@@ -77,15 +77,21 @@ const exportarCsv = asyncHandler(async (req, res) => {
         linhas.push([escapar(item.codigo), escapar(item.descricao), escapar(setor)].join(','));
     }
 
-    // BOM UTF-8 no início do arquivo: sem ele, o P-touch Editor (e o
-    // Excel/Windows em geral) costuma interpretar o CSV como ANSI/Latin-1
-    // e quebra acentos (ex: "Arrecadação" virava "AreacadaÃ§Ã£o").
-    const BOM = '﻿';
-    const csv = BOM + linhas.join('\n');
+    const csv = linhas.join('\n');
 
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    // O P-touch Editor não reconhece BOM UTF-8 (tentamos isso antes e só
+    // piorou: os 3 bytes do BOM apareciam como "i»¿" colado no primeiro
+    // cabeçalho). Ele espera o arquivo em ANSI/Windows-1252 mesmo — é
+    // esse o encoding padrão que o Windows usa pra CSV sem BOM. Como o
+    // conjunto de acentos do português (ã, ç, á, é, etc.) ocupa a mesma
+    // faixa de bytes em Windows-1252 e em Latin-1 (ISO-8859-1), convertemos
+    // a string (que está correta em memória, em UTF-16/JS) direto pra um
+    // buffer Latin-1 — equivalente ao que o P-touch consegue ler.
+    const bufferLatin1 = Buffer.from(csv, 'latin1');
+
+    res.setHeader('Content-Type', 'text/csv; charset=ISO-8859-1');
     res.setHeader('Content-Disposition', `attachment; filename="lote-${lote.id}.csv"`);
-    res.send(csv);
+    res.send(bufferLatin1);
 });
 
 module.exports = { listarPendentes, listar, criar, exportarCsv };
