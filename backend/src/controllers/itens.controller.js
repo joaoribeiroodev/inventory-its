@@ -295,6 +295,23 @@ const registrarMovimentacao = asyncHandler(async (req, res) => {
     res.json(atualizado);
 });
 
+// DELETE /itens/:id — exclui o item (só admin; ver rota). Os
+// eventos de movimentação e vínculos com lotes de etiqueta são
+// removidos em cascata pelo próprio banco (onDelete: Cascade no
+// schema), não precisa limpar manualmente.
+const excluir = asyncHandler(async (req, res) => {
+    const itemId = BigInt(req.params.id);
+
+    const item = await prisma.item.findUnique({ where: { id: itemId } });
+    if (!item) {
+        return res.status(404).json({ erro: 'Item não encontrado' });
+    }
+
+    await prisma.item.delete({ where: { id: itemId } });
+
+    res.status(204).end();
+});
+
 module.exports = {
     listar,
     exportarXlsx,
@@ -305,4 +322,5 @@ module.exports = {
     criar,
     atualizar,
     registrarMovimentacao,
+    excluir,
 };

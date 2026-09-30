@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { useAuth } from '../../../contexts/AuthContext';
 import { api } from '../../../services/api';
@@ -21,6 +21,7 @@ export default function ItemDetalhePage() {
 
 function DetalheDoItem() {
     const { id } = useParams();
+    const router = useRouter();
     const { usuario } = useAuth();
     const [item, setItem] = useState(null);
     const [eventos, setEventos] = useState([]);
@@ -28,6 +29,7 @@ function DetalheDoItem() {
     const [editando, setEditando] = useState(false);
     const [descricao, setDescricao] = useState('');
     const [categoria, setCategoria] = useState('');
+    const [excluindo, setExcluindo] = useState(false);
 
     const [editandoMovimentacao, setEditandoMovimentacao] = useState(false);
     const [setorSelecionado, setSetorSelecionado] = useState('');
@@ -35,6 +37,7 @@ function DetalheDoItem() {
     const [salvandoMovimentacao, setSalvandoMovimentacao] = useState(false);
 
     const podeEditar = usuario?.papel === 'admin' || usuario?.papel === 'cadastrador';
+    const podeExcluir = usuario?.papel === 'admin';
 
     async function carregar() {
         const itemAtual = await api.buscarItem(id);
@@ -56,6 +59,22 @@ function DetalheDoItem() {
         await api.atualizarItem(id, { descricao, categoria: categoria || null });
         setEditando(false);
         carregar();
+    }
+
+    async function excluirItem() {
+        const confirmou = window.confirm(
+            `Excluir o item ${item.codigo}? Isso apaga também todo o histórico de movimentação dele. Essa ação não pode ser desfeita.`
+        );
+        if (!confirmou) return;
+
+        setExcluindo(true);
+        try {
+            await api.excluirItem(id);
+            router.push('/itens');
+        } catch (err) {
+            alert(err.message);
+            setExcluindo(false);
+        }
     }
 
     async function salvarMovimentacao() {
@@ -99,11 +118,18 @@ function DetalheDoItem() {
                         <>
                             <h1 style={{ marginTop: 4, marginBottom: 4 }}>{item.descricao}</h1>
                             {item.categoria && <p className="subtitle">{item.categoria}</p>}
-                            {podeEditar && (
-                                <button className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={() => setEditando(true)}>
-                                    Editar
-                                </button>
-                            )}
+                            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                {podeEditar && (
+                                    <button className="btn btn-secondary btn-sm" onClick={() => setEditando(true)}>
+                                        Editar
+                                    </button>
+                                )}
+                                {podeExcluir && (
+                                    <button className="btn btn-danger btn-sm" onClick={excluirItem} disabled={excluindo}>
+                                        {excluindo ? 'Excluindo...' : 'Excluir'}
+                                    </button>
+                                )}
+                            </div>
                         </>
                     )}
                 </div>

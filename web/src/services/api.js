@@ -51,6 +51,7 @@ export const api = {
     criarItem: (dados) => requisitar('/itens', { method: 'POST', body: JSON.stringify(dados) }),
     atualizarItem: (id, dados) =>
         requisitar(`/itens/${id}`, { method: 'PUT', body: JSON.stringify(dados) }),
+    excluirItem: (id) => requisitar(`/itens/${id}`, { method: 'DELETE' }),
     // Registra mudança de setor e/ou situação (Bom/Ruim) do item,
     // gerando um evento de movimentação no histórico.
     registrarMovimentacao: (id, dados) =>
