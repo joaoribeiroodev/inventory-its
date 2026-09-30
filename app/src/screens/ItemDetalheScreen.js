@@ -4,14 +4,17 @@
 // cacheado — ver decisão de arquitetura).
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as Crypto from 'expo-crypto';
-import { buscarItemPorCodigo, listarSetoresLocais, enfileirarEvento, aplicarEventoNoCacheLocal } from '../database/queries';
+import { buscarItemPorCodigo, listarSetoresLocais, enfileirarEvento, aplicarEventoNoCacheLocal, aplicarEdicaoNoCacheLocal } from '../database/queries';
 import { useConnectivity } from '../contexts/ConnectivityContext';
+import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 import Botao from '../components/Botao';
 import Badge from '../components/Badge';
 import Cartao from '../components/Cartao';
+import Campo from '../components/Campo';
 import { colors, spacing, typography, infoSituacao } from '../theme';
 
 const SITUACOES = ['bom', 'ruim'];
@@ -19,12 +22,19 @@ const SITUACOES = ['bom', 'ruim'];
 export default function ItemDetalheScreen({ route, navigation }) {
     const { codigo } = route.params;
     const { isOnline } = useConnectivity();
+    const { usuario } = useAuth();
+    const podeEditar = usuario?.papel === 'admin' || usuario?.papel === 'cadastrador';
 
     const [item, setItem] = useState(null);
     const [setores, setSetores] = useState([]);
     const [setorSelecionado, setSetorSelecionado] = useState(null);
     const [situacaoSelecionada, setSituacaoSelecionada] = useState(null);
     const [salvando, setSalvando] = useState(false);
+
+    const [editando, setEditando] = useState(false);
+    const [descricaoEdit, setDescricaoEdit] = useState('');
+    const [categoriaEdit, setCategoriaEdit] = useState('');
+    const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -74,13 +84,62 @@ export default function ItemDetalheScreen({ route, navigation }) {
         navigation.goBack();
     }
 
+    // Edição cadastral (descrição/categoria) exige conexão — o cache
+    // local não guarda o id numérico do item (só o código), então
+    // buscamos o item completo no servidor ao abrir o formulário.
+    function iniciarEdicao() {
+        setDescricaoEdit(item.descricao);
+        setCategoriaEdit(item.categoria ?? '');
+        setEditando(true);
+    }
+
+    async function salvarEdicao() {
+        setSalvandoEdicao(true);
+        try {
+            const itemServidor = await api.buscarItemPorCodigo(item.codigo);
+            await api.atualizarItem(itemServidor.id, {
+                descricao: descricaoEdit,
+                categoria: categoriaEdit || null,
+            });
+            await aplicarEdicaoNoCacheLocal(item.codigo, {
+                descricao: descricaoEdit,
+                categoria: categoriaEdit || null,
+            });
+            setItem({ ...item, descricao: descricaoEdit, categoria: categoriaEdit || null });
+            setEditando(false);
+        } catch (err) {
+            Alert.alert('Erro ao salvar edição', err.message);
+        } finally {
+            setSalvandoEdicao(false);
+        }
+    }
+
     const situacaoAtual = infoSituacao(item.situacao_atual);
 
     return (
         <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.container}>
             <Text style={styles.codigo}>{item.codigo}</Text>
-            <Text style={styles.descricao}>{item.descricao}</Text>
-            {item.categoria && <Text style={styles.categoria}>{item.categoria}</Text>}
+
+            {editando ? (
+                <Cartao style={{ marginTop: spacing.xs }}>
+                    <Campo label="Descrição" value={descricaoEdit} onChangeText={setDescricaoEdit} />
+                    <Campo label="Categoria" placeholder="Categoria" value={categoriaEdit} onChangeText={setCategoriaEdit} />
+                    <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                        <Botao titulo="Salvar" variante="accent" onPress={salvarEdicao} carregando={salvandoEdicao} style={{ flex: 1 }} />
+                        <Botao titulo="Cancelar" variante="secondary" onPress={() => setEditando(false)} disabled={salvandoEdicao} style={{ flex: 1 }} />
+                    </View>
+                </Cartao>
+            ) : (
+                <>
+                    <Text style={styles.descricao}>{item.descricao}</Text>
+                    {item.categoria && <Text style={styles.categoria}>{item.categoria}</Text>}
+                    {podeEditar && isOnline && (
+                        <Text style={styles.linkEditar} onPress={iniciarEdicao}>
+                            Editar
+                        </Text>
+                    )}
+                </>
+            )}
 
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs, marginBottom: spacing.md }}>
                 <Badge texto={situacaoAtual.rotulo} bg={situacaoAtual.bg} cor={situacaoAtual.cor} />
@@ -148,6 +207,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         backgroundColor: colors.surface,
     },
+    linkEditar: { marginTop: spacing.xs, color: colors.primary, fontWeight: '600' },
     linkHistorico: { marginTop: spacing.lg, color: colors.primary, fontWeight: '600', textAlign: 'center' },
     avisoOffline: { marginTop: spacing.lg, color: colors.textMuted, textAlign: 'center', fontSize: 12 },
 });

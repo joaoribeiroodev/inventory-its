@@ -19,6 +19,7 @@ function FormularioNovoItem() {
     const [categoria, setCategoria] = useState('');
     const [setores, setSetores] = useState([]);
     const [setorId, setSetorId] = useState('');
+    const [situacaoInicial, setSituacaoInicial] = useState('bom');
     const [erro, setErro] = useState(null);
     const [salvando, setSalvando] = useState(false);
 
@@ -35,6 +36,7 @@ function FormularioNovoItem() {
                 descricao,
                 categoria: categoria || null,
                 setorInicialId: setorId || null,
+                situacaoInicial,
             });
             router.push(`/itens/${item.id}`);
         } catch (err) {
@@ -72,6 +74,14 @@ function FormularioNovoItem() {
                             {setores.map((s) => (
                                 <option key={s.id} value={s.id}>{s.nome}</option>
                             ))}
+                        </select>
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Situação</label>
+                        <select className="form-control" value={situacaoInicial} onChange={(e) => setSituacaoInicial(e.target.value)}>
+                            <option value="bom">Bom</option>
+                            <option value="ruim">Ruim</option>
                         </select>
                     </div>
 

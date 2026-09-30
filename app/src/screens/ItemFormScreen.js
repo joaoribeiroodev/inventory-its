@@ -15,6 +15,7 @@ export default function ItemFormScreen({ navigation }) {
     const [categoria, setCategoria] = useState('');
     const [setores, setSetores] = useState([]);
     const [setorId, setSetorId] = useState(null);
+    const [situacaoInicial, setSituacaoInicial] = useState('bom');
     const [salvando, setSalvando] = useState(false);
 
     useEffect(() => {
@@ -33,6 +34,7 @@ export default function ItemFormScreen({ navigation }) {
                 descricao: descricao.trim(),
                 categoria: categoria.trim() || null,
                 setorInicialId: setorId,
+                situacaoInicial,
             });
             navigation.goBack();
         } catch (err) {
@@ -55,6 +57,14 @@ export default function ItemFormScreen({ navigation }) {
                         {setores.map((s) => (
                             <Picker.Item key={s.id} label={s.nome} value={s.id} />
                         ))}
+                    </Picker>
+                </View>
+
+                <Text style={styles.label}>Situação</Text>
+                <View style={styles.pickerBorda}>
+                    <Picker selectedValue={situacaoInicial} onValueChange={setSituacaoInicial}>
+                        <Picker.Item label="Bom" value="bom" />
+                        <Picker.Item label="Ruim" value="ruim" />
                     </Picker>
                 </View>
 

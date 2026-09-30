@@ -130,6 +130,21 @@ export async function aplicarEventoNoCacheLocal(itemCodigo, { setorNovoNome, sit
     );
 }
 
+// Aplica localmente uma edição cadastral (descrição/categoria) já
+// confirmada pelo servidor — mesma lógica de aplicarEventoNoCacheLocal,
+// mas pros campos que não passam pela fila de eventos (ver PUT
+// /itens/:id no backend: exige conexão, sem fila offline).
+export async function aplicarEdicaoNoCacheLocal(itemCodigo, { descricao, categoria }) {
+    const db = await getDb();
+    await db.runAsync(
+        `UPDATE itens SET
+            descricao = COALESCE(?, descricao),
+            categoria = ?
+         WHERE codigo = ?`,
+        [descricao ?? null, categoria ?? null, itemCodigo]
+    );
+}
+
 // ---------- fila de eventos pendentes ----------
 
 export async function enfileirarEvento(evento) {

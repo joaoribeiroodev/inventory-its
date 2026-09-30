@@ -77,7 +77,11 @@ const exportarCsv = asyncHandler(async (req, res) => {
         linhas.push([escapar(item.codigo), escapar(item.descricao), escapar(setor)].join(','));
     }
 
-    const csv = linhas.join('\n');
+    // BOM UTF-8 no início do arquivo: sem ele, o P-touch Editor (e o
+    // Excel/Windows em geral) costuma interpretar o CSV como ANSI/Latin-1
+    // e quebra acentos (ex: "Arrecadação" virava "AreacadaÃ§Ã£o").
+    const BOM = '﻿';
+    const csv = BOM + linhas.join('\n');
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="lote-${lote.id}.csv"`);
