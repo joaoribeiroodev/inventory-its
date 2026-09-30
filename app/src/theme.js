@@ -26,10 +26,8 @@ export const colors = {
 };
 
 export const situacaoInfo = {
-    em_uso: { bg: colors.accentLight, cor: colors.accentDark, rotulo: 'Em uso' },
-    em_manutencao: { bg: colors.warningBg, cor: colors.warning, rotulo: 'Em manutenção' },
-    estoque: { bg: '#E7EEF5', cor: colors.primary, rotulo: 'Estoque' },
-    baixado: { bg: colors.dangerBg, cor: colors.danger, rotulo: 'Baixado' },
+    bom: { bg: colors.accentLight, cor: colors.accentDark, rotulo: 'Bom' },
+    ruim: { bg: colors.dangerBg, cor: colors.danger, rotulo: 'Ruim' },
 };
 
 export function infoSituacao(situacao) {

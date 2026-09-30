@@ -76,7 +76,7 @@ function ListaDeSetores() {
                                     <td style={{ fontWeight: 600 }}>{s.nome}</td>
                                     <td>{s.descricao ?? '—'}</td>
                                     <td>
-                                        <span className={`badge ${s.ativo ? 'badge-em_uso' : 'badge-neutro'}`}>
+                                        <span className={`badge ${s.ativo ? 'badge-bom' : 'badge-neutro'}`}>
                                             {s.ativo ? 'Ativo' : 'Inativo'}
                                         </span>
                                     </td>

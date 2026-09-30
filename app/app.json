@@ -13,11 +13,18 @@
       "backgroundColor": "#0B3B60"
     },
     "extra": {
-      "defaultServerUrl": "http://192.168.0.10:3001"
+      "defaultServerUrl": "https://inventory-its.onrender.com",
+      "eas": {
+        "projectId": "6b29f1c1-0c2c-4ba1-9278-e0af6becef2b"
+      }
     },
     "android": {
       "package": "br.com.internacionaltravessias.inventoryits",
-      "permissions": ["CAMERA"],
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#0B3B60"

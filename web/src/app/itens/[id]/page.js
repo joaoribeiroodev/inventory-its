@@ -7,10 +7,8 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { api } from '../../../services/api';
 
 const ROTULOS_SITUACAO = {
-    em_uso: 'Em uso',
-    em_manutencao: 'Em manutenção',
-    estoque: 'Estoque',
-    baixado: 'Baixado',
+    bom: 'Bom',
+    ruim: 'Ruim',
 };
 
 export default function ItemDetalhePage() {
@@ -88,23 +86,23 @@ function DetalheDoItem() {
                 </div>
             </div>
 
-            <div className="card info-grid">
-                <div className="info-item">
-                    <div className="info-item-label">Setor atual</div>
-                    <div className="info-item-value">{item.setorAtual?.nome ?? '—'}</div>
+            <div className="card info-list">
+                <div className="info-row">
+                    <div className="info-row-label">Setor atual</div>
+                    <div className="info-row-value">{item.setorAtual?.nome ?? '—'}</div>
                 </div>
-                <div className="info-item">
-                    <div className="info-item-label">Situação</div>
-                    <div className="info-item-value">
+                <div className="info-row">
+                    <div className="info-row-label">Situação</div>
+                    <div className="info-row-value">
                         <span className={`badge badge-${item.situacaoAtual}`}>
                             {ROTULOS_SITUACAO[item.situacaoAtual] ?? item.situacaoAtual}
                         </span>
                     </div>
                 </div>
-                <div className="info-item">
-                    <div className="info-item-label">Etiqueta</div>
-                    <div className="info-item-value">
-                        <span className={`badge ${item.etiquetaImpressa ? 'badge-em_uso' : 'badge-neutro'}`}>
+                <div className="info-row">
+                    <div className="info-row-label">Etiqueta</div>
+                    <div className="info-row-value">
+                        <span className={`badge ${item.etiquetaImpressa ? 'badge-bom' : 'badge-neutro'}`}>
                             {item.etiquetaImpressa ? 'Impressa' : 'Pendente'}
                         </span>
                     </div>

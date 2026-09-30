@@ -435,22 +435,12 @@ tbody tr:hover {
     white-space: nowrap;
 }
 
-.badge-em_uso {
+.badge-bom {
     background: var(--color-accent-light);
     color: var(--color-accent-dark);
 }
 
-.badge-em_manutencao {
-    background: var(--color-warning-bg);
-    color: var(--color-warning);
-}
-
-.badge-estoque {
-    background: #e7eef5;
-    color: var(--color-primary);
-}
-
-.badge-baixado {
+.badge-ruim {
     background: var(--color-danger-bg);
     color: var(--color-danger);
 }
@@ -507,28 +497,36 @@ tbody tr:hover {
 
 /* ---------- misc ---------- */
 
-.info-grid {
+.info-list {
     display: flex;
-    gap: 24px;
-    flex-wrap: wrap;
+    flex-direction: column;
     margin-top: 16px;
 }
 
-.info-item {
-    min-width: 140px;
+.info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--color-border);
 }
 
-.info-item-label {
-    font-size: 12px;
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-row-label {
+    font-size: 13px;
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    margin-bottom: 2px;
 }
 
-.info-item-value {
+.info-row-value {
     font-size: 15px;
     font-weight: 600;
+    text-align: right;
 }
 
 .scanner-frame {

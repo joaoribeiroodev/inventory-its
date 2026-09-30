@@ -3,10 +3,8 @@ const prisma = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
 
 const ROTULOS_SITUACAO = {
-    em_uso: 'Em uso',
-    em_manutencao: 'Em manutenção',
-    estoque: 'Estoque',
-    baixado: 'Baixado',
+    bom: 'Bom',
+    ruim: 'Ruim',
 };
 
 // GET /itens — listagem completa (painel web), com filtros simples
@@ -215,7 +213,7 @@ const criar = asyncHandler(async (req, res) => {
                 descricao,
                 categoria: categoria ?? null,
                 setorAtualId: setorInicialId ? BigInt(setorInicialId) : null,
-                situacaoAtual: situacaoInicial ?? 'em_uso',
+                situacaoAtual: situacaoInicial ?? 'bom',
                 criadoPor: BigInt(req.usuario.id),
             },
         });

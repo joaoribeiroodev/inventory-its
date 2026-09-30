@@ -81,7 +81,7 @@ function ListaDeUsuarios() {
                                     <td>{u.email}</td>
                                     <td><span className="badge badge-neutro">{u.papel}</span></td>
                                     <td>
-                                        <span className={`badge ${u.ativo ? 'badge-em_uso' : 'badge-baixado'}`}>
+                                        <span className={`badge ${u.ativo ? 'badge-bom' : 'badge-ruim'}`}>
                                             {u.ativo ? 'Ativo' : 'Inativo'}
                                         </span>
                                     </td>

@@ -14,7 +14,7 @@ import Badge from '../components/Badge';
 import Cartao from '../components/Cartao';
 import { colors, spacing, typography, infoSituacao } from '../theme';
 
-const SITUACOES = ['em_uso', 'em_manutencao', 'estoque', 'baixado'];
+const SITUACOES = ['bom', 'ruim'];
 
 export default function ItemDetalheScreen({ route, navigation }) {
     const { codigo } = route.params;

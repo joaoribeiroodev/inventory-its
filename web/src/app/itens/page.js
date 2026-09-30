@@ -7,10 +7,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 
 const ROTULOS_SITUACAO = {
-    em_uso: 'Em uso',
-    em_manutencao: 'Em manutenção',
-    estoque: 'Estoque',
-    baixado: 'Baixado',
+    bom: 'Bom',
+    ruim: 'Ruim',
 };
 
 export default function ItensPage() {
@@ -115,7 +113,7 @@ function ListaDeItens() {
                                         </span>
                                     </td>
                                     <td>
-                                        <span className={`badge ${item.etiquetaImpressa ? 'badge-em_uso' : 'badge-neutro'}`}>
+                                        <span className={`badge ${item.etiquetaImpressa ? 'badge-bom' : 'badge-neutro'}`}>
                                             {item.etiquetaImpressa ? 'Impressa' : 'Pendente'}
                                         </span>
                                     </td>

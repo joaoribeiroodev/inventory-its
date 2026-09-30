@@ -19,7 +19,7 @@ async function recomputarCacheItem(tx, itemId) {
     });
 
     let setorAtualId = null;
-    let situacaoAtual = 'em_uso';
+    let situacaoAtual = 'bom';
 
     for (const evento of eventos) {
         if (evento.setorNovoId !== null) setorAtualId = evento.setorNovoId;
@@ -48,7 +48,7 @@ async function recomputarCacheItem(tx, itemId) {
  *       "uuidEvento": "uuid-gerado-no-app",
  *       "itemCodigo": "INV-000042",
  *       "setorNovoId": 3,            // opcional
- *       "situacaoNova": "em_uso",    // opcional
+ *       "situacaoNova": "bom",       // opcional
  *       "observacao": "...",         // opcional
  *       "timestampEvento": "2026-09-29T14:32:00-03:00"
  *     },

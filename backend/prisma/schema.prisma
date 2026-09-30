@@ -24,10 +24,8 @@ enum Papel {
 }
 
 enum Situacao {
-  em_uso
-  em_manutencao
-  estoque
-  baixado
+  bom
+  ruim
 }
 
 model Usuario {
@@ -83,7 +81,7 @@ model Item {
   categoria         String?   @db.VarChar(100)
 
   setorAtualId      BigInt?   @map("setor_atual_id")
-  situacaoAtual     Situacao  @default(em_uso) @map("situacao_atual")
+  situacaoAtual     Situacao  @default(bom) @map("situacao_atual")
 
   etiquetaImpressa  Boolean   @default(false) @map("etiqueta_impressa")
   loteEtiquetaId    BigInt?   @map("lote_etiqueta_id")
