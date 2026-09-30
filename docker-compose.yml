@@ -1,0 +1,61 @@
+name: inventory-its
+
+# =========================================================
+# inventory-its — orquestração LOCAL opcional via Docker
+#
+# Não é mais o caminho de produção: em produção o backend roda
+# no Render, o painel web na Vercel e o banco (PostgreSQL) no
+# Neon — nenhum dos três precisa de Docker (ver README no chat
+# / instruções que o Claude te passou).
+#
+# Esse arquivo continua útil só se você quiser rodar backend e
+# web localmente em containers (em vez de "npm run dev" direto),
+# sempre conversando com o banco do Neon via DATABASE_URL no
+# .env. Se preferir não usar Docker de jeito nenhum, ignore este
+# arquivo e rode os dois com npm normalmente.
+#
+# Uso:
+#   1. cp .env.example .env    (preencha DATABASE_URL com a do Neon)
+#   2. docker compose up -d --build
+# =========================================================
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: inventory-its-api
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: ${API_PORT}
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+    ports:
+      - "127.0.0.1:${API_PORT}:${API_PORT}"
+    networks:
+      - inventory-its-net
+
+  web:
+    build:
+      context: ./web
+      # NEXT_PUBLIC_API_URL precisa ser passado como build arg:
+      # o Next.js "queima" variáveis NEXT_PUBLIC_* no bundle JS
+      # durante o build, não em runtime.
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    container_name: inventory-its-web
+    restart: always
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      PORT: ${WEB_PORT}
+    ports:
+      - "127.0.0.1:${WEB_PORT}:${WEB_PORT}"
+    networks:
+      - inventory-its-net
+
+networks:
+  inventory-its-net:
+    driver: bridge

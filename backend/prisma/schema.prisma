@@ -1,0 +1,156 @@
+// =========================================================
+// inventory-its — Prisma schema
+//
+// Banco: PostgreSQL (hospedado gratuitamente no Neon — ver
+// DATABASE_URL no .env). Este arquivo é a ÚNICA fonte de
+// verdade do schema: para criar/atualizar as tabelas no banco,
+// rode `npm run prisma:push` (executa `prisma db push`), sem
+// precisar de nenhum script SQL manual.
+// =========================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Papel {
+  admin
+  cadastrador
+  operador
+}
+
+enum Situacao {
+  em_uso
+  em_manutencao
+  estoque
+  baixado
+}
+
+model Usuario {
+  id           BigInt   @id @default(autoincrement())
+  nome         String   @db.VarChar(150)
+  email        String   @unique @db.VarChar(190)
+  senhaHash    String   @map("senha_hash") @db.VarChar(255)
+  papel        Papel    @default(operador)
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  dispositivos    Dispositivo[]
+  itensCriados    Item[]               @relation("ItemCriadoPor")
+  eventos         EventoMovimentacao[]
+  lotesEtiquetas  LoteEtiquetas[]
+
+  @@map("usuarios")
+}
+
+model Dispositivo {
+  id                    BigInt    @id @default(autoincrement())
+  usuarioId             BigInt    @map("usuario_id")
+  identificador         String    @unique @db.VarChar(190)
+  apelido               String?   @db.VarChar(100)
+  ultimaSincronizacaoEm DateTime? @map("ultima_sincronizacao_em")
+  criadoEm              DateTime  @default(now()) @map("criado_em")
+
+  usuario  Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  eventos  EventoMovimentacao[]
+
+  @@map("dispositivos")
+}
+
+model Setor {
+  id        BigInt   @id @default(autoincrement())
+  nome      String   @unique @db.VarChar(150)
+  descricao String?  @db.VarChar(255)
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  itensAtuais      Item[]               @relation("ItemSetorAtual")
+  eventosAnteriores EventoMovimentacao[] @relation("SetorAnterior")
+  eventosNovos      EventoMovimentacao[] @relation("SetorNovo")
+
+  @@map("setores")
+}
+
+model Item {
+  id                BigInt    @id @default(autoincrement())
+  codigo            String    @unique @db.VarChar(30)
+  descricao         String    @db.VarChar(255)
+  categoria         String?   @db.VarChar(100)
+
+  setorAtualId      BigInt?   @map("setor_atual_id")
+  situacaoAtual     Situacao  @default(em_uso) @map("situacao_atual")
+
+  etiquetaImpressa  Boolean   @default(false) @map("etiqueta_impressa")
+  loteEtiquetaId    BigInt?   @map("lote_etiqueta_id")
+
+  criadoPor         BigInt?   @map("criado_por")
+  criadoEm          DateTime  @default(now()) @map("criado_em")
+  atualizadoEm      DateTime  @default(now()) @updatedAt @map("atualizado_em")
+
+  setorAtual        Setor?               @relation("ItemSetorAtual", fields: [setorAtualId], references: [id])
+  criadoPorUsuario  Usuario?             @relation("ItemCriadoPor", fields: [criadoPor], references: [id])
+  eventos           EventoMovimentacao[]
+  lotes             LoteEtiquetasItem[]
+
+  @@map("itens")
+  @@index([setorAtualId])
+  @@index([etiquetaImpressa])
+}
+
+model EventoMovimentacao {
+  id                    BigInt   @id @default(autoincrement())
+  itemId                BigInt   @map("item_id")
+  usuarioId             BigInt   @map("usuario_id")
+  dispositivoId         BigInt?  @map("dispositivo_id")
+
+  setorAnteriorId       BigInt?  @map("setor_anterior_id")
+  setorNovoId           BigInt?  @map("setor_novo_id")
+  situacaoAnterior      String?  @map("situacao_anterior") @db.VarChar(30)
+  situacaoNova          String?  @map("situacao_nova") @db.VarChar(30)
+
+  observacao            String?  @db.VarChar(255)
+
+  uuidEvento            String   @unique @map("uuid_evento") @db.Char(36)
+
+  timestampEvento       DateTime @map("timestamp_evento")
+  timestampSincronizado DateTime @default(now()) @map("timestamp_sincronizado")
+
+  item           Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  usuario        Usuario      @relation(fields: [usuarioId], references: [id])
+  dispositivo    Dispositivo? @relation(fields: [dispositivoId], references: [id])
+  setorAnterior  Setor?       @relation("SetorAnterior", fields: [setorAnteriorId], references: [id])
+  setorNovo      Setor?       @relation("SetorNovo", fields: [setorNovoId], references: [id])
+
+  @@map("eventos_movimentacao")
+  @@index([itemId, timestampEvento])
+  @@index([usuarioId])
+}
+
+model LoteEtiquetas {
+  id               BigInt   @id @default(autoincrement())
+  usuarioId        BigInt   @map("usuario_id")
+  quantidadeItens  Int      @default(0) @map("quantidade_itens")
+  observacao       String?  @db.VarChar(255)
+  criadoEm         DateTime @default(now()) @map("criado_em")
+
+  usuario Usuario             @relation(fields: [usuarioId], references: [id])
+  itens   LoteEtiquetasItem[]
+
+  @@map("lotes_etiquetas")
+}
+
+model LoteEtiquetasItem {
+  loteId BigInt @map("lote_id")
+  itemId BigInt @map("item_id")
+
+  lote LoteEtiquetas @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  item Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([loteId, itemId])
+  @@map("lote_etiquetas_itens")
+}

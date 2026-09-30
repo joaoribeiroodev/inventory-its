@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "inventory-its",
+    "slug": "inventory-its",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/logo.png",
+    "backgroundColor": "#0B3B60",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B3B60"
+    },
+    "extra": {
+      "defaultServerUrl": "http://192.168.0.10:3001"
+    },
+    "android": {
+      "package": "br.com.internacionaltravessias.inventoryits",
+      "permissions": ["CAMERA"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#0B3B60"
+      }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "O app precisa da câmera para ler o QR Code das etiquetas."
+        }
+      ]
+    ]
+  }
+}

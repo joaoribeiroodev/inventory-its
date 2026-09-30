@@ -1,0 +1,87 @@
+const prisma = require('../lib/prisma');
+const { asyncHandler } = require('../utils/asyncHandler');
+
+// GET /lotes/pendentes — itens que ainda não tiveram etiqueta gerada
+const listarPendentes = asyncHandler(async (req, res) => {
+    const itens = await prisma.item.findMany({
+        where: { etiquetaImpressa: false },
+        include: { setorAtual: true },
+        orderBy: { criadoEm: 'asc' },
+    });
+    res.json(itens);
+});
+
+// GET /lotes — histórico de lotes já gerados
+const listar = asyncHandler(async (req, res) => {
+    const lotes = await prisma.loteEtiquetas.findMany({
+        include: { usuario: { select: { nome: true } }, _count: { select: { itens: true } } },
+        orderBy: { criadoEm: 'desc' },
+    });
+    res.json(lotes);
+});
+
+// POST /lotes — gera um novo lote a partir dos itens pendentes
+// (ou de uma lista específica de itemIds, se enviada no body)
+const criar = asyncHandler(async (req, res) => {
+    const { itemIds, observacao } = req.body;
+
+    const itens = itemIds && itemIds.length
+        ? await prisma.item.findMany({ where: { id: { in: itemIds.map(BigInt) }, etiquetaImpressa: false } })
+        : await prisma.item.findMany({ where: { etiquetaImpressa: false } });
+
+    if (itens.length === 0) {
+        return res.status(400).json({ erro: 'Nenhum item pendente para gerar etiqueta' });
+    }
+
+    const lote = await prisma.$transaction(async (tx) => {
+        const novoLote = await tx.loteEtiquetas.create({
+            data: {
+                usuarioId: BigInt(req.usuario.id),
+                quantidadeItens: itens.length,
+                observacao: observacao ?? null,
+            },
+        });
+
+        await tx.loteEtiquetasItem.createMany({
+            data: itens.map((item) => ({ loteId: novoLote.id, itemId: item.id })),
+        });
+
+        await tx.item.updateMany({
+            where: { id: { in: itens.map((i) => i.id) } },
+            data: { etiquetaImpressa: true, loteEtiquetaId: novoLote.id },
+        });
+
+        return novoLote;
+    });
+
+    res.status(201).json({ ...lote, itens });
+});
+
+// GET /lotes/:id/csv — exporta o lote no formato esperado pelo
+// template do P-touch Editor (colunas: codigo,descricao,setor)
+const exportarCsv = asyncHandler(async (req, res) => {
+    const lote = await prisma.loteEtiquetas.findUnique({
+        where: { id: BigInt(req.params.id) },
+        include: { itens: { include: { item: { include: { setorAtual: true } } } } },
+    });
+
+    if (!lote) {
+        return res.status(404).json({ erro: 'Lote não encontrado' });
+    }
+
+    const linhas = ['codigo,descricao,setor'];
+    for (const { item } of lote.itens) {
+        const setor = item.setorAtual?.nome ?? '';
+        // Escapa vírgulas/aspas básicas para não quebrar o CSV
+        const escapar = (v) => `"${String(v).replace(/"/g, '""')}"`;
+        linhas.push([escapar(item.codigo), escapar(item.descricao), escapar(setor)].join(','));
+    }
+
+    const csv = linhas.join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="lote-${lote.id}.csv"`);
+    res.send(csv);
+});
+
+module.exports = { listarPendentes, listar, criar, exportarCsv };
