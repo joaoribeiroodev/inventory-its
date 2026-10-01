@@ -360,6 +360,23 @@ const excluir = asyncHandler(async (req, res) => {
     res.status(204).end();
 });
 
+// POST /itens/excluir-lote — exclui vários itens de uma vez (só
+// admin; ver rota), pra não precisar entrar item por item quando dá
+// pra selecionar uma leva direto na lista. Mesma cascata do excluir()
+// de item único.
+const excluirVarios = asyncHandler(async (req, res) => {
+    const { itemIds } = req.body;
+
+    if (!Array.isArray(itemIds) || itemIds.length === 0) {
+        return res.status(400).json({ erro: 'Informe ao menos um item' });
+    }
+
+    const ids = itemIds.map((id) => BigInt(id));
+    const resultado = await prisma.item.deleteMany({ where: { id: { in: ids } } });
+
+    res.json({ excluidos: resultado.count });
+});
+
 // GET /itens/:id/csv — exporta o próprio item no mesmo formato usado
 // na exportação de lote (codigo,descricao,setor), pra dar pra baixar
 // de novo/reimprimir a etiqueta de um item avulso sem precisar gerar
@@ -413,5 +430,6 @@ module.exports = {
     atualizar,
     registrarMovimentacao,
     excluir,
+    excluirVarios,
     exportarCsv,
 };

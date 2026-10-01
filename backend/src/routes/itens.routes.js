@@ -20,5 +20,7 @@ router.post('/:id/movimentar', itens.registrarMovimentacao);
 // Exclusão é restrita a admin — ação destrutiva e irreversível
 // (apaga também o histórico de movimentação do item, em cascata).
 router.delete('/:id', autorizar('admin'), itens.excluir);
+// Exclusão em lote (seleção múltipla na lista) — mesma restrição.
+router.post('/excluir-lote', autorizar('admin'), itens.excluirVarios);
 
 module.exports = router;

@@ -25,13 +25,18 @@ function ListaDeItens() {
     const [busca, setBusca] = useState('');
     const [carregando, setCarregando] = useState(true);
     const [exportando, setExportando] = useState(false);
+    const [selecionados, setSelecionados] = useState(new Set());
+    const [excluindo, setExcluindo] = useState(false);
 
     const podeCriar = usuario?.papel === 'admin' || usuario?.papel === 'cadastrador';
+    // Mesma regra do detalhe do item: só admin exclui.
+    const podeExcluir = usuario?.papel === 'admin';
 
     async function carregar(filtros = {}) {
         setCarregando(true);
         try {
             setItens(await api.listarItens(filtros));
+            setSelecionados(new Set());
         } finally {
             setCarregando(false);
         }
@@ -54,6 +59,38 @@ function ListaDeItens() {
             alert(err.message);
         } finally {
             setExportando(false);
+        }
+    }
+
+    function alternarSelecao(id) {
+        setSelecionados((atual) => {
+            const novo = new Set(atual);
+            if (novo.has(id)) novo.delete(id);
+            else novo.add(id);
+            return novo;
+        });
+    }
+
+    function alternarSelecaoTodos() {
+        setSelecionados((atual) =>
+            atual.size === itens.length ? new Set() : new Set(itens.map((item) => item.id))
+        );
+    }
+
+    async function handleExcluirSelecionados() {
+        const confirmou = window.confirm(
+            `Excluir ${selecionados.size} item(ns) selecionado(s)? Isso apaga também o histórico de movimentação deles. Essa ação não pode ser desfeita.`
+        );
+        if (!confirmou) return;
+
+        setExcluindo(true);
+        try {
+            await api.excluirItensEmLote([...selecionados]);
+            await carregar(busca ? { busca } : {});
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setExcluindo(false);
         }
     }
 
@@ -83,6 +120,25 @@ function ListaDeItens() {
                 />
             </form>
 
+            {podeExcluir && selecionados.size > 0 && (
+                <div
+                    className="card"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        marginBottom: 12,
+                        padding: '10px 16px',
+                    }}
+                >
+                    <span>{selecionados.size} item(ns) selecionado(s)</span>
+                    <button className="btn btn-danger btn-sm" onClick={handleExcluirSelecionados} disabled={excluindo}>
+                        {excluindo ? 'Excluindo...' : 'Excluir selecionados'}
+                    </button>
+                </div>
+            )}
+
             {carregando ? (
                 <div className="loading-shell">Carregando...</div>
             ) : (
@@ -90,6 +146,16 @@ function ListaDeItens() {
                     <table>
                         <thead>
                             <tr>
+                                {podeExcluir && (
+                                    <th style={{ width: 32 }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={itens.length > 0 && selecionados.size === itens.length}
+                                            onChange={alternarSelecaoTodos}
+                                            aria-label="Selecionar todos"
+                                        />
+                                    </th>
+                                )}
                                 <th>Código</th>
                                 <th>Descrição</th>
                                 <th>Setor</th>
@@ -100,6 +166,16 @@ function ListaDeItens() {
                         <tbody>
                             {itens.map((item) => (
                                 <tr key={item.id}>
+                                    {podeExcluir && (
+                                        <td>
+                                            <input
+                                                type="checkbox"
+                                                checked={selecionados.has(item.id)}
+                                                onChange={() => alternarSelecao(item.id)}
+                                                aria-label={`Selecionar item ${item.codigo ?? item.id}`}
+                                            />
+                                        </td>
+                                    )}
                                     <td>
                                         <Link href={`/itens/${item.id}`} style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>
                                             {item.codigo ?? 'Sem código ainda'}
@@ -121,7 +197,7 @@ function ListaDeItens() {
                             ))}
                             {itens.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="table-empty">Nenhum item encontrado</td>
+                                    <td colSpan={podeExcluir ? 6 : 5} className="table-empty">Nenhum item encontrado</td>
                                 </tr>
                             )}
                         </tbody>

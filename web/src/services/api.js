@@ -52,6 +52,9 @@ export const api = {
     atualizarItem: (id, dados) =>
         requisitar(`/itens/${id}`, { method: 'PUT', body: JSON.stringify(dados) }),
     excluirItem: (id) => requisitar(`/itens/${id}`, { method: 'DELETE' }),
+    // Exclui vários itens de uma vez (seleção múltipla na lista).
+    excluirItensEmLote: (itemIds) =>
+        requisitar('/itens/excluir-lote', { method: 'POST', body: JSON.stringify({ itemIds }) }),
     // Baixa o CSV (mesmo formato usado no lote) só desse item — pra
     // reimprimir a etiqueta de um item avulso sem precisar achar/baixar
     // o lote inteiro em que ele entrou.
