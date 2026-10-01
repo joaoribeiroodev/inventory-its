@@ -30,6 +30,7 @@ export async function getDb() {
 
         CREATE TABLE IF NOT EXISTS itens (
             codigo TEXT PRIMARY KEY NOT NULL,
+            numero_etiqueta TEXT,
             descricao TEXT NOT NULL,
             categoria TEXT,
             situacao_atual TEXT NOT NULL,
@@ -51,6 +52,16 @@ export async function getDb() {
             criado_em TEXT NOT NULL DEFAULT (datetime('now'))
         );
     `);
+
+    // Migração pra quem já tinha o app instalado antes da coluna
+    // "numero_etiqueta" existir — CREATE TABLE IF NOT EXISTS não
+    // altera uma tabela que já existe, então tenta adicionar a
+    // coluna à parte e ignora o erro se ela já estiver lá.
+    try {
+        await dbInstance.execAsync('ALTER TABLE itens ADD COLUMN numero_etiqueta TEXT;');
+    } catch (err) {
+        if (!String(err.message).includes('duplicate column')) throw err;
+    }
 
     return dbInstance;
 }

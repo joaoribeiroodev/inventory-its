@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, SafeAreaView } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { buscarItemPorCodigo } from '../database/queries';
+import { buscarItemPorCodigo, buscarItensPorEtiqueta } from '../database/queries';
 import Botao from '../components/Botao';
 import { colors, radius, spacing, typography } from '../theme';
 
@@ -32,7 +32,20 @@ export default function ScannerScreen({ navigation }) {
         const codigo = data.trim();
         const item = await buscarItemPorCodigo(codigo);
 
-        if (!item) {
+        if (item) {
+            navigation.navigate('ItemDetalhe', { codigo: item.codigo });
+            // Libera a trava depois de um instante, para quando o usuário voltar pra essa tela
+            setTimeout(() => setTravado(false), 1500);
+            return;
+        }
+
+        // Não achou pelo código exato — pode ser uma etiqueta de
+        // patrimônio física colada em mais de um bem (ver levantamento
+        // patrimonial). Nesse caso vários itens compartilham o mesmo
+        // número de etiqueta; deixa a pessoa escolher qual é o certo.
+        const candidatos = await buscarItensPorEtiqueta(codigo);
+
+        if (candidatos.length === 0) {
             Alert.alert(
                 'Item não reconhecido',
                 `O código "${codigo}" não foi encontrado no cache local. Se o item foi cadastrado recentemente, sincronize na tela de Configurações.`,
@@ -41,16 +54,33 @@ export default function ScannerScreen({ navigation }) {
             return;
         }
 
-        navigation.navigate('ItemDetalhe', { codigo: item.codigo });
-        // Libera a trava depois de um instante, para quando o usuário voltar pra essa tela
-        setTimeout(() => setTravado(false), 1500);
+        if (candidatos.length === 1) {
+            navigation.navigate('ItemDetalhe', { codigo: candidatos[0].codigo });
+            setTimeout(() => setTravado(false), 1500);
+            return;
+        }
+
+        Alert.alert(
+            'Etiqueta duplicada',
+            'Essa etiqueta está colada em mais de um item. Qual deles é?',
+            [
+                ...candidatos.map((c) => ({
+                    text: `${c.descricao} — ${c.setor_atual ?? 'sem setor'}`,
+                    onPress: () => {
+                        navigation.navigate('ItemDetalhe', { codigo: c.codigo });
+                        setTimeout(() => setTravado(false), 1500);
+                    },
+                })),
+                { text: 'Cancelar', style: 'cancel', onPress: () => setTravado(false) },
+            ]
+        );
     }
 
     return (
         <View style={styles.container}>
             <CameraView
                 style={StyleSheet.absoluteFillObject}
-                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                barcodeScannerSettings={{ barcodeTypes: ['qr', 'code128'] }}
                 onBarcodeScanned={travado ? undefined : handleQrLido}
             />
 

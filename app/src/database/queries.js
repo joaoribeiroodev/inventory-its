@@ -76,14 +76,15 @@ export async function upsertItens(itens) {
     await db.withTransactionAsync(async () => {
         for (const item of itens) {
             await db.runAsync(
-                `INSERT INTO itens (codigo, descricao, categoria, situacao_atual, setor_atual)
-                 VALUES (?, ?, ?, ?, ?)
+                `INSERT INTO itens (codigo, numero_etiqueta, descricao, categoria, situacao_atual, setor_atual)
+                 VALUES (?, ?, ?, ?, ?, ?)
                  ON CONFLICT(codigo) DO UPDATE SET
+                    numero_etiqueta = excluded.numero_etiqueta,
                     descricao = excluded.descricao,
                     categoria = excluded.categoria,
                     situacao_atual = excluded.situacao_atual,
                     setor_atual = excluded.setor_atual`,
-                [item.codigo, item.descricao, item.categoria, item.situacaoAtual, item.setorAtual]
+                [item.codigo, item.numeroEtiqueta ?? null, item.descricao, item.categoria, item.situacaoAtual, item.setorAtual]
             );
         }
     });
@@ -105,6 +106,15 @@ export async function upsertSetores(setores) {
 export async function buscarItemPorCodigo(codigo) {
     const db = await getDb();
     return db.getFirstAsync('SELECT * FROM itens WHERE codigo = ?', [codigo]);
+}
+
+// Fallback pro caso de uma etiqueta de patrimônio física duplicada
+// entre vários itens (ver levantamento patrimonial): o "codigo" de
+// cada um ganha um sufixo (-A, -B) pra ficar único, mas o número bruto
+// lido do código de barras bate com "numero_etiqueta" dos dois.
+export async function buscarItensPorEtiqueta(numeroEtiqueta) {
+    const db = await getDb();
+    return db.getAllAsync('SELECT * FROM itens WHERE numero_etiqueta = ?', [numeroEtiqueta]);
 }
 
 export async function listarItensLocais() {

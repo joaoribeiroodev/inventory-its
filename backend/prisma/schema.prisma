@@ -80,6 +80,20 @@ model Item {
   descricao         String    @db.VarChar(255)
   categoria         String?   @db.VarChar(100)
 
+  // Número bruto lido do código de barras da etiqueta de patrimônio
+  // física (ex.: "9637"). Igual ao "codigo" na maioria dos casos —
+  // só diverge quando a mesma etiqueta física foi colada em mais de
+  // um bem por engano (ver levantamento patrimonial): aí "codigo"
+  // ganha um sufixo ("9637-A", "9637-B") pra continuar único no
+  // sistema, mas "numeroEtiqueta" guarda o valor real do código de
+  // barras pros dois, permitindo achar ambos ao escanear a etiqueta.
+  // Fica nulo pra itens sem etiqueta física (código gerado pelo
+  // sistema).
+  numeroEtiqueta       String?   @map("numero_etiqueta") @db.VarChar(30)
+  // true quando numeroEtiqueta é compartilhado por mais de um item —
+  // sinaliza no painel que esse bem física precisa ser re-etiquetado.
+  patrimonioDuplicado  Boolean   @default(false) @map("patrimonio_duplicado")
+
   setorAtualId      BigInt?   @map("setor_atual_id")
   situacaoAtual     Situacao  @default(bom) @map("situacao_atual")
 
@@ -98,6 +112,7 @@ model Item {
   @@map("itens")
   @@index([setorAtualId])
   @@index([etiquetaImpressa])
+  @@index([numeroEtiqueta])
 }
 
 model EventoMovimentacao {

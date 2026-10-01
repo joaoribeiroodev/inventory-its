@@ -134,6 +134,7 @@ const sync = asyncHandler(async (req, res) => {
     const itens = await prisma.item.findMany({
         select: {
             codigo: true,
+            numeroEtiqueta: true,
             descricao: true,
             categoria: true,
             situacaoAtual: true,
@@ -144,6 +145,7 @@ const sync = asyncHandler(async (req, res) => {
     res.json(
         itens.map((item) => ({
             codigo: item.codigo,
+            numeroEtiqueta: item.numeroEtiqueta,
             descricao: item.descricao,
             categoria: item.categoria,
             situacaoAtual: item.situacaoAtual,
@@ -152,18 +154,42 @@ const sync = asyncHandler(async (req, res) => {
     );
 });
 
-// GET /itens/codigo/:codigo — busca por QR Code (modo online)
+// GET /itens/codigo/:codigo — busca pelo texto lido do código de
+// barras/QR Code (modo online).
+//
+// Primeiro tenta bater exatamente com o "codigo" do sistema (caso
+// normal: QR gerado por nós, ou etiqueta de patrimônio física sem
+// duplicidade — nesses dois casos codigo === numeroEtiqueta). Se não
+// achar, cai pro "numeroEtiqueta": cobre o caso de uma etiqueta de
+// patrimônio física que foi colada em mais de um bem (ver levantamento
+// patrimonial) — aí vários itens têm o mesmo numeroEtiqueta mas
+// "codigo" com sufixo (-A, -B...). Se mais de um item bater, devolve
+// a lista pra quem escaneou escolher qual é o item físico certo, em
+// vez de abrir um item errado.
 const buscarPorCodigo = asyncHandler(async (req, res) => {
-    const item = await prisma.item.findUnique({
-        where: { codigo: req.params.codigo },
+    const codigo = req.params.codigo;
+
+    const direto = await prisma.item.findUnique({
+        where: { codigo },
+        include: { setorAtual: true },
+    });
+    if (direto) {
+        return res.json(direto);
+    }
+
+    const candidatos = await prisma.item.findMany({
+        where: { numeroEtiqueta: codigo },
         include: { setorAtual: true },
     });
 
-    if (!item) {
+    if (candidatos.length === 0) {
         return res.status(404).json({ erro: 'Item não encontrado' });
     }
+    if (candidatos.length === 1) {
+        return res.json(candidatos[0]);
+    }
 
-    res.json(item);
+    res.json({ ambiguo: true, itens: candidatos });
 });
 
 // GET /itens/:id — detalhe completo (painel / app online)
@@ -199,54 +225,82 @@ const listarHistorico = asyncHandler(async (req, res) => {
 // POST /itens — cadastro de novo item (exige conexão; papel:
 // admin ou cadastrador).
 //
-// O código do QR NÃO usa mais o id autoincrement direto — se usasse,
-// excluir um item nunca liberaria o número dele (o Postgres não reusa
-// valores de sequence), e o código ficaria crescendo pra sempre mesmo
-// com poucos itens ativos. Em vez disso, procuramos o menor número
-// "INV-NNNNNN" ainda não usado entre os itens existentes, preenchendo
-// os buracos deixados por exclusões.
-const proximoCodigoDisponivel = async (tx) => {
+// O código do item segue o "padrão patrimônio": só dígitos, igual
+// às etiquetas físicas de patrimônio que a empresa já usa (ex.:
+// "9637"). Dois casos:
+//
+//  1. O item já tem uma etiqueta de patrimônio física (foi lida por
+//     QR/código de barras, ou digitada na mão) — usamos esse número
+//     direto como código, sem inventar nada.
+//  2. O item não tem etiqueta física nenhuma ainda — geramos um
+//     número automaticamente. Pra nunca colidir com um número de
+//     patrimônio real (os que a empresa já usa vão até ~10000, pelo
+//     levantamento de 2026), a geração automática usa uma faixa bem
+//     mais alta, reservada só pro sistema (ver FAIXA_CODIGO_GERADO).
+//     Preenche os buracos deixados por exclusões, do mesmo jeito que
+//     o esquema antigo "INV-NNNNNN" fazia.
+//
+// Itens antigos com código "INV-NNNNNN" continuam como estão — essa
+// troca vale só daqui pra frente.
+const FAIXA_CODIGO_GERADO = 100000;
+
+const proximoNumeroDisponivel = async (tx) => {
+    // Busca todos os códigos (não dá pra filtrar numericamente no
+    // banco com um WHERE direto, porque "codigo" é texto e a
+    // comparação lexicográfica de string não bate com a numérica —
+    // ex.: "8644" > "100000" como string, mas é menor como número).
+    // Com a escala do inventário (algumas centenas/milhares de itens)
+    // isso é tranquilo; o filtro certo é feito em JS logo abaixo.
     const itens = await tx.item.findMany({
-        where: { codigo: { startsWith: 'INV-' } },
         select: { codigo: true },
     });
 
     const numerosUsados = new Set();
     for (const { codigo } of itens) {
-        const numero = parseInt(codigo.slice(4), 10);
-        if (!Number.isNaN(numero)) numerosUsados.add(numero);
+        const numero = parseInt(codigo, 10);
+        if (!Number.isNaN(numero) && numero >= FAIXA_CODIGO_GERADO) numerosUsados.add(numero);
     }
 
-    let proximo = 1;
+    let proximo = FAIXA_CODIGO_GERADO;
     while (numerosUsados.has(proximo)) proximo++;
 
-    return `INV-${String(proximo).padStart(6, '0')}`;
+    return String(proximo);
 };
 
 const criar = asyncHandler(async (req, res) => {
-    const { descricao, categoria, setorInicialId, situacaoInicial } = req.body;
+    const { descricao, categoria, setorInicialId, situacaoInicial, numeroEtiqueta } = req.body;
 
     if (!descricao) {
         return res.status(400).json({ erro: 'Descrição é obrigatória' });
     }
 
-    const item = await prisma.$transaction(async (tx) => {
-        const codigo = await proximoCodigoDisponivel(tx);
+    try {
+        const item = await prisma.$transaction(async (tx) => {
+            const codigo = numeroEtiqueta ? String(numeroEtiqueta).trim() : await proximoNumeroDisponivel(tx);
 
-        return tx.item.create({
-            data: {
-                codigo,
-                descricao,
-                categoria: categoria ?? null,
-                setorAtualId: setorInicialId ? BigInt(setorInicialId) : null,
-                situacaoAtual: situacaoInicial ?? 'bom',
-                criadoPor: BigInt(req.usuario.id),
-            },
-            include: { setorAtual: true },
+            return tx.item.create({
+                data: {
+                    codigo,
+                    numeroEtiqueta: numeroEtiqueta ? codigo : null,
+                    descricao,
+                    categoria: categoria ?? null,
+                    setorAtualId: setorInicialId ? BigInt(setorInicialId) : null,
+                    situacaoAtual: situacaoInicial ?? 'bom',
+                    criadoPor: BigInt(req.usuario.id),
+                },
+                include: { setorAtual: true },
+            });
         });
-    });
 
-    res.status(201).json(item);
+        res.status(201).json(item);
+    } catch (err) {
+        // Código de patrimônio já cadastrado em outro item (constraint
+        // unique de "codigo") — caso normal de digitação, não é um 500.
+        if (err.code === 'P2002') {
+            return res.status(409).json({ erro: `Já existe um item com o código "${numeroEtiqueta}"` });
+        }
+        throw err;
+    }
 });
 
 // PUT /itens/:id — edição de dados cadastrais (descrição/categoria).

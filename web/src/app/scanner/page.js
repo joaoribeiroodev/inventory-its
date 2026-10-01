@@ -23,15 +23,26 @@ function LeitorDeQrCode() {
     const [ativo, setAtivo] = useState(true);
     const [buscando, setBuscando] = useState(false);
     const [erro, setErro] = useState(null);
+    // Preenchido quando a etiqueta lida está duplicada entre mais de
+    // um item (ver levantamento patrimonial) — nesse caso não dá pra
+    // ir direto pro item, tem que deixar a pessoa escolher qual bem
+    // físico ela tem na mão.
+    const [candidatosAmbiguos, setCandidatosAmbiguos] = useState(null);
 
     const handleLeitura = useCallback(
         async (codigo) => {
             setAtivo(false); // pausa a câmera enquanto processa, evita leituras duplicadas
             setBuscando(true);
             setErro(null);
+            setCandidatosAmbiguos(null);
             try {
-                const item = await api.buscarItemPorCodigo(codigo.trim());
-                router.push(`/itens/${item.id}`);
+                const resultado = await api.buscarItemPorCodigo(codigo.trim());
+                if (resultado.ambiguo) {
+                    setCandidatosAmbiguos(resultado.itens);
+                    setBuscando(false);
+                    return;
+                }
+                router.push(`/itens/${resultado.id}`);
             } catch (err) {
                 setErro(
                     err.status === 404
@@ -46,6 +57,7 @@ function LeitorDeQrCode() {
 
     function handleTentarNovamente() {
         setErro(null);
+        setCandidatosAmbiguos(null);
         setAtivo(true);
     }
 
@@ -69,6 +81,30 @@ function LeitorDeQrCode() {
                         <p className="form-error">{erro}</p>
                         <button className="btn btn-primary" onClick={handleTentarNovamente}>
                             Tentar novamente
+                        </button>
+                    </div>
+                )}
+
+                {candidatosAmbiguos && (
+                    <div style={{ marginTop: 16 }}>
+                        <p className="form-error">
+                            Essa etiqueta está colada em mais de um item (patrimônio duplicado). Qual deles é?
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {candidatosAmbiguos.map((item) => (
+                                <button
+                                    key={item.id}
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    style={{ textAlign: 'left' }}
+                                    onClick={() => router.push(`/itens/${item.id}`)}
+                                >
+                                    {item.descricao} — {item.setorAtual?.nome ?? 'sem setor'}
+                                </button>
+                            ))}
+                        </div>
+                        <button className="btn btn-primary" style={{ marginTop: 8 }} onClick={handleTentarNovamente}>
+                            Nenhum desses / tentar de novo
                         </button>
                     </div>
                 )}
