@@ -78,10 +78,35 @@ function ListaDeItens() {
         setSituacao('');
     }
 
+    // Texto curto descrevendo o filtro ativo, só pra exibir perto do
+    // botão de exportar e pro nome do arquivo baixado (ver
+    // api.baixarXlsxItens) — deixa claro o que vai sair na planilha
+    // sem precisar abrir o arquivo.
+    function descricaoFiltro() {
+        const partes = [];
+        if (setorId) {
+            const setor = setores.find((s) => String(s.id) === String(setorId));
+            if (setor) partes.push(setor.nome);
+        }
+        if (situacao) partes.push(ROTULOS_SITUACAO[situacao] ?? situacao);
+        if (busca.trim()) partes.push(`"${busca.trim()}"`);
+        return partes.join(' · ');
+    }
+
+    function slugify(texto) {
+        return texto
+            .normalize('NFD')
+            .replace(/[̀-ͯ]/g, '') // remove acentos
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '');
+    }
+
     async function handleExportar() {
         setExportando(true);
         try {
-            await api.baixarXlsxItens(filtrosAtuais());
+            const descricao = descricaoFiltro();
+            await api.baixarXlsxItens(filtrosAtuais(), descricao ? slugify(descricao) : '');
         } catch (err) {
             alert(err.message);
         } finally {
@@ -148,7 +173,12 @@ function ListaDeItens() {
                     <h1>Itens</h1>
                     <p className="subtitle">Equipamentos e itens cadastrados no inventário</p>
                 </div>
-                <div className="page-header-actions">
+                <div className="page-header-actions" style={{ alignItems: 'center' }}>
+                    {temFiltroAtivo && (
+                        <span className="subtitle" style={{ fontSize: 13 }}>
+                            Exportando: {descricaoFiltro()}
+                        </span>
+                    )}
                     <button className="btn btn-secondary" onClick={handleExportar} disabled={exportando}>
                         {exportando ? 'Exportando...' : 'Exportar XLSX'}
                     </button>

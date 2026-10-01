@@ -81,9 +81,15 @@ export const api = {
         requisitar(`/itens/${id}/movimentar`, { method: 'POST', body: JSON.stringify(dados) }),
 
     // Exportação da lista de itens (relatório) em xlsx formatado,
-    // respeitando os mesmos filtros usados na tela. Mesmo padrão de
+    // respeitando os mesmos filtros usados na tela (busca, setor,
+    // situação — ver construirFiltro() no backend). Mesmo padrão de
     // download autenticado usado em baixarCsvLote.
-    baixarXlsxItens: async (filtros = {}) => {
+    //
+    // sufixoArquivo (opcional) é só cosmético: a tela monta um texto
+    // curto descrevendo o filtro ativo (ex. "ti-bom-despacho") pra
+    // deixar isso visível no nome do arquivo baixado, sem precisar
+    // abrir a planilha pra saber o que foi exportado.
+    baixarXlsxItens: async (filtros = {}, sufixoArquivo = '') => {
         const token = getToken();
         const params = new URLSearchParams(filtros).toString();
         const resposta = await fetch(`${BASE_URL}/api/itens/exportar/xlsx${params ? `?${params}` : ''}`, {
@@ -95,7 +101,8 @@ export const api = {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `itens-${new Date().toISOString().slice(0, 10)}.xlsx`;
+        const data = new Date().toISOString().slice(0, 10);
+        link.download = `itens${sufixoArquivo ? `-${sufixoArquivo}` : ''}-${data}.xlsx`;
         document.body.appendChild(link);
         link.click();
         link.remove();
