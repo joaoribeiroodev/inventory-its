@@ -76,7 +76,9 @@ function GestaoDeLotes() {
                             <tbody>
                                 {pendentes.map((item) => (
                                     <tr key={item.id}>
-                                        <td style={{ fontWeight: 600 }}>{item.codigo}</td>
+                                        <td style={{ fontWeight: 600 }}>
+                                            {item.codigo ?? <span className="subtitle">gerado ao imprimir</span>}
+                                        </td>
                                         <td>{item.descricao}</td>
                                         <td>{item.setorAtual?.nome ?? '—'}</td>
                                     </tr>

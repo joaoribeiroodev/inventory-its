@@ -76,7 +76,12 @@ model Setor {
 
 model Item {
   id                BigInt    @id @default(autoincrement())
-  codigo            String    @unique @db.VarChar(30)
+  // Nulo até o item ganhar um código de verdade: na hora de cadastrar
+  // (se já tem etiqueta de patrimônio física) ou na hora de entrar
+  // num lote de impressão (se não tem — o código só é gerado nesse
+  // momento, pra nunca existir código no sistema sem existir etiqueta
+  // física correspondente — ver conversa com o João).
+  codigo            String?   @unique @db.VarChar(30)
   descricao         String    @db.VarChar(255)
   categoria         String?   @db.VarChar(100)
 

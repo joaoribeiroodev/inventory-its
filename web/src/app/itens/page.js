@@ -102,7 +102,7 @@ function ListaDeItens() {
                                 <tr key={item.id}>
                                     <td>
                                         <Link href={`/itens/${item.id}`} style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>
-                                            {item.codigo}
+                                            {item.codigo ?? 'Sem código ainda'}
                                         </Link>
                                     </td>
                                     <td>{item.descricao}</td>

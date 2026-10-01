@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
+const { proximoNumeroDisponivel } = require('../utils/codigoGerado');
 
 // GET /lotes/pendentes — itens que ainda não tiveram etiqueta gerada
 const listarPendentes = asyncHandler(async (req, res) => {
@@ -41,6 +42,12 @@ const buscarPorId = asyncHandler(async (req, res) => {
 
 // POST /lotes — gera um novo lote a partir dos itens pendentes
 // (ou de uma lista específica de itemIds, se enviada no body)
+//
+// É aqui — e só aqui (ou no CSV avulso de um item, ou ao adicionar um
+// item a um lote existente) — que um item sem etiqueta física ganha
+// um código novo. Gerar o código só na hora de efetivamente montar o
+// lote (o botão "Gerar lote") evita ter código no sistema sem ter
+// etiqueta física correspondente (ver conversa com o João).
 const criar = asyncHandler(async (req, res) => {
     const { itemIds, observacao } = req.body;
 
@@ -60,6 +67,13 @@ const criar = asyncHandler(async (req, res) => {
                 observacao: observacao ?? null,
             },
         });
+
+        for (const item of itens) {
+            if (!item.codigo) {
+                item.codigo = await proximoNumeroDisponivel(tx);
+                await tx.item.update({ where: { id: item.id }, data: { codigo: item.codigo } });
+            }
+        }
 
         await tx.loteEtiquetasItem.createMany({
             data: itens.map((item) => ({ loteId: novoLote.id, itemId: item.id })),
@@ -143,6 +157,17 @@ const adicionarItens = asyncHandler(async (req, res) => {
 
         if (novosIds.length === 0) {
             return tx.loteEtiquetas.findUnique({ where: { id: loteId } });
+        }
+
+        // Mesma regra de criar(): item sem etiqueta física e sem
+        // código ganha um agora, já que está entrando num lote pra
+        // imprimir de verdade.
+        for (const itemId of novosIds) {
+            const item = await tx.item.findUnique({ where: { id: itemId } });
+            if (item && !item.codigo) {
+                const novoCodigo = await proximoNumeroDisponivel(tx);
+                await tx.item.update({ where: { id: itemId }, data: { codigo: novoCodigo } });
+            }
         }
 
         await tx.loteEtiquetasItem.createMany({

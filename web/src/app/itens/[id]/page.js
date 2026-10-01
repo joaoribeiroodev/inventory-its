@@ -84,6 +84,9 @@ function DetalheDoItem() {
         setBaixandoCsv(true);
         try {
             await api.baixarCsvItem(id, item.codigo);
+            // Se o item ainda não tinha código, baixar o CSV acabou de
+            // gerar um (ver backend) — recarrega pra mostrar na tela.
+            if (!item.codigo) await carregar();
         } catch (err) {
             alert(err.message);
         } finally {
@@ -109,7 +112,9 @@ function DetalheDoItem() {
 
     return (
         <div>
-            <p className="subtitle" style={{ marginBottom: 0, fontWeight: 600 }}>{item.codigo}</p>
+            <p className="subtitle" style={{ marginBottom: 0, fontWeight: 600 }}>
+                {item.codigo ?? 'Sem código ainda — gerado ao imprimir a etiqueta'}
+            </p>
 
             <div className="page-header" style={{ marginTop: 4 }}>
                 <div style={{ flex: 1, minWidth: 240 }}>

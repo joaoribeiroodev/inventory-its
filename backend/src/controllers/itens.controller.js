@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const prisma = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
+const { proximoNumeroDisponivel } = require('../utils/codigoGerado');
 
 const ROTULOS_SITUACAO = {
     bom: 'Bom',
@@ -132,6 +133,10 @@ const exportarXlsx = asyncHandler(async (req, res) => {
 // ver decisão de arquitetura: sem histórico, sem dados extras)
 const sync = asyncHandler(async (req, res) => {
     const itens = await prisma.item.findMany({
+        // Item sem código ainda (sem etiqueta física impressa nem
+        // gerada) não tem o que ser escaneado — não faz sentido levar
+        // pro cache offline do app.
+        where: { codigo: { not: null } },
         select: {
             codigo: true,
             numeroEtiqueta: true,
@@ -225,48 +230,21 @@ const listarHistorico = asyncHandler(async (req, res) => {
 // POST /itens — cadastro de novo item (exige conexão; papel:
 // admin ou cadastrador).
 //
-// O código do item segue o "padrão patrimônio": só dígitos, igual
-// às etiquetas físicas de patrimônio que a empresa já usa (ex.:
-// "9637"). Dois casos:
+// O código do item (padrão patrimônio, só dígitos) só existe quando
+// existe uma etiqueta física correspondente:
 //
 //  1. O item já tem uma etiqueta de patrimônio física (foi lida por
 //     QR/código de barras, ou digitada na mão) — usamos esse número
 //     direto como código, sem inventar nada.
-//  2. O item não tem etiqueta física nenhuma ainda — geramos um
-//     número automaticamente. Pra nunca colidir com um número de
-//     patrimônio real (os que a empresa já usa vão até ~10000, pelo
-//     levantamento de 2026), a geração automática usa uma faixa bem
-//     mais alta, reservada só pro sistema (ver FAIXA_CODIGO_GERADO).
-//     Preenche os buracos deixados por exclusões, do mesmo jeito que
-//     o esquema antigo "INV-NNNNNN" fazia.
-//
-// Itens antigos com código "INV-NNNNNN" continuam como estão — essa
-// troca vale só daqui pra frente.
-const FAIXA_CODIGO_GERADO = 100000;
-
-const proximoNumeroDisponivel = async (tx) => {
-    // Busca todos os códigos (não dá pra filtrar numericamente no
-    // banco com um WHERE direto, porque "codigo" é texto e a
-    // comparação lexicográfica de string não bate com a numérica —
-    // ex.: "8644" > "100000" como string, mas é menor como número).
-    // Com a escala do inventário (algumas centenas/milhares de itens)
-    // isso é tranquilo; o filtro certo é feito em JS logo abaixo.
-    const itens = await tx.item.findMany({
-        select: { codigo: true },
-    });
-
-    const numerosUsados = new Set();
-    for (const { codigo } of itens) {
-        const numero = parseInt(codigo, 10);
-        if (!Number.isNaN(numero) && numero >= FAIXA_CODIGO_GERADO) numerosUsados.add(numero);
-    }
-
-    let proximo = FAIXA_CODIGO_GERADO;
-    while (numerosUsados.has(proximo)) proximo++;
-
-    return String(proximo);
-};
-
+//  2. O item não tem etiqueta física nenhuma ainda — NÃO geramos
+//     código nenhum aqui. Ele fica com codigo=null (não entra na
+//     listagem de "pendente de etiqueta" tecnicamente ele já entra,
+//     já que etiquetaImpressa é false por padrão) até alguém decidir
+//     imprimir uma etiqueta pra ele de verdade — é só nesse momento
+//     (gerar lote, adicionar a um lote ou baixar o CSV avulso do
+//     item — ver lotes.controller.js e exportarCsv abaixo) que um
+//     número é gerado, pra nunca existir código no sistema sem
+//     existir etiqueta física pra ele (ver conversa com o João).
 const criar = asyncHandler(async (req, res) => {
     const { descricao, categoria, setorInicialId, situacaoInicial, numeroEtiqueta } = req.body;
 
@@ -274,22 +252,20 @@ const criar = asyncHandler(async (req, res) => {
         return res.status(400).json({ erro: 'Descrição é obrigatória' });
     }
 
-    try {
-        const item = await prisma.$transaction(async (tx) => {
-            const codigo = numeroEtiqueta ? String(numeroEtiqueta).trim() : await proximoNumeroDisponivel(tx);
+    const codigo = numeroEtiqueta ? String(numeroEtiqueta).trim() : null;
 
-            return tx.item.create({
-                data: {
-                    codigo,
-                    numeroEtiqueta: numeroEtiqueta ? codigo : null,
-                    descricao,
-                    categoria: categoria ?? null,
-                    setorAtualId: setorInicialId ? BigInt(setorInicialId) : null,
-                    situacaoAtual: situacaoInicial ?? 'bom',
-                    criadoPor: BigInt(req.usuario.id),
-                },
-                include: { setorAtual: true },
-            });
+    try {
+        const item = await prisma.item.create({
+            data: {
+                codigo,
+                numeroEtiqueta: codigo,
+                descricao,
+                categoria: categoria ?? null,
+                setorAtualId: setorInicialId ? BigInt(setorInicialId) : null,
+                situacaoAtual: situacaoInicial ?? 'bom',
+                criadoPor: BigInt(req.usuario.id),
+            },
+            include: { setorAtual: true },
         });
 
         res.status(201).json(item);
@@ -389,13 +365,25 @@ const excluir = asyncHandler(async (req, res) => {
 // de novo/reimprimir a etiqueta de um item avulso sem precisar gerar
 // (ou achar) o lote inteiro em que ele entrou.
 const exportarCsv = asyncHandler(async (req, res) => {
-    const item = await prisma.item.findUnique({
+    let item = await prisma.item.findUnique({
         where: { id: BigInt(req.params.id) },
         include: { setorAtual: true },
     });
 
     if (!item) {
         return res.status(404).json({ erro: 'Item não encontrado' });
+    }
+
+    // Item sem etiqueta física ainda e sem código: baixar o CSV É a
+    // intenção de imprimir agora, então é aqui que o código é gerado
+    // (ver comentário em criar(), acima).
+    if (!item.codigo) {
+        const codigo = await proximoNumeroDisponivel(prisma);
+        item = await prisma.item.update({
+            where: { id: item.id },
+            data: { codigo },
+            include: { setorAtual: true },
+        });
     }
 
     const escapar = (v) => `"${String(v).replace(/"/g, '""')}"`;

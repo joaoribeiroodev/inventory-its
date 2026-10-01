@@ -11,10 +11,12 @@
 //    mas numeroEtiqueta igual nos dois, e patrimonioDuplicado = true
 //    (vira um aviso visual no painel).
 //  - Item sem etiqueta nenhuma ("SEM ETIQUETA" ou "NOVO(CAIXA)" —
-//    equipamento novo ainda na caixa) -> ganha um código gerado pelo
-//    sistema, numérico, numa faixa reservada que nunca colide com
-//    patrimônio real (mesma lógica do cadastro manual em
-//    itens.controller.js: FAIXA_CODIGO_GERADO = 100000).
+//    equipamento novo ainda na caixa) -> entra com codigo = null.
+//    NÃO geramos um número aqui: o código só é gerado na hora que
+//    alguém realmente for imprimir uma etiqueta nova pra ele (botão
+//    "Gerar lote" no painel, ou "Baixar CSV" avulso do item) — assim
+//    nunca existe código no sistema sem existir etiqueta física
+//    correspondente (ver conversa com o João).
 //  - Setor = "<PRÉDIO> - <DEPARTAMENTO>" (ex. "BOM DESPACHO - CCO"),
 //    porque 18 departamentos têm o mesmo nome nos dois prédios e são
 //    salas físicas diferentes.
@@ -24,8 +26,11 @@
 //   node scripts/importar-levantamento.js            -> dry-run (não grava nada, só mostra o que faria)
 //   node scripts/importar-levantamento.js --confirmar -> grava de verdade
 //
-// É seguro rodar de novo: itens cujo "codigo" já existe no banco são
-// pulados (não duplica se rodar duas vezes sem querer).
+// Itens com etiqueta física (codigo != null) são seguros de rodar de
+// novo — o codigo já existente no banco é pulado, não duplica. JÁ OS
+// ITENS SEM ETIQUETA (codigo null) NÃO TÊM COMO SER DEDUPLICADOS
+// (não existe um identificador único pra eles) — rodar --confirmar
+// duas vezes VAI duplicá-los. Rode --confirmar uma única vez.
 
 const fs = require('fs');
 const path = require('path');
@@ -33,14 +38,6 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 const CONFIRMAR = process.argv.includes('--confirmar');
-const FAIXA_CODIGO_GERADO = 100000; // igual ao itens.controller.js
-
-async function proximoNumeroDisponivel(usados) {
-    let proximo = FAIXA_CODIGO_GERADO;
-    while (usados.has(proximo)) proximo++;
-    usados.add(proximo);
-    return String(proximo);
-}
 
 async function main() {
     const dadosPath = path.join(__dirname, 'levantamento-patrimonial-2026.json');
@@ -67,16 +64,11 @@ async function main() {
     }
     console.log(`Setores: ${nomesSetor.length} distintos (${[...setorIdPorNome.values()].filter((v) => v === '(novo)').length} novos a criar)`);
 
-    // 2) Carrega os códigos numéricos "gerados pelo sistema" já em uso,
-    // pra continuar a numeração de onde já está (mesma regra do
-    // itens.controller.js)
+    // 2) Carrega os códigos já em uso no banco, só pra não duplicar
+    // codigo de item com etiqueta física (itens sem etiqueta entram
+    // com codigo = null e não passam por essa checagem).
     const existentes = await prisma.item.findMany({ select: { codigo: true } });
-    const codigosExistentes = new Set(existentes.map((i) => i.codigo));
-    const numerosGeradosUsados = new Set();
-    for (const { codigo } of existentes) {
-        const n = parseInt(codigo, 10);
-        if (!Number.isNaN(n) && n >= FAIXA_CODIGO_GERADO) numerosGeradosUsados.add(n);
-    }
+    const codigosExistentes = new Set(existentes.map((i) => i.codigo).filter(Boolean));
 
     let criados = 0;
     let pulados = 0;
@@ -89,13 +81,11 @@ async function main() {
         const nomeSetor = `${linha.predio} - ${linha.departamento}`;
         const setorAtualId = setorIdPorNome.get(nomeSetor);
 
-        let codigo = linha.codigo;
-        if (!codigo) {
-            codigo = await proximoNumeroDisponivel(numerosGeradosUsados);
-            semEtiqueta++;
-        }
+        const codigo = linha.codigo; // null pra item sem etiqueta física — gerado só na hora de imprimir
 
-        if (codigosExistentes.has(codigo)) {
+        if (!codigo) {
+            semEtiqueta++;
+        } else if (codigosExistentes.has(codigo)) {
             pulados++;
             continue;
         }
@@ -105,7 +95,7 @@ async function main() {
             resumoDuplicados.push(`  linha ${linha.linha}: codigo=${codigo} numeroEtiqueta=${linha.numeroEtiqueta} "${linha.descricao}" (${nomeSetor})`);
         }
 
-        codigosExistentes.add(codigo); // evita colisão dentro do próprio lote
+        if (codigo) codigosExistentes.add(codigo); // evita colisão dentro do próprio lote
 
         if (CONFIRMAR) {
             try {
@@ -130,7 +120,7 @@ async function main() {
 
     console.log('');
     console.log(`Itens ${CONFIRMAR ? 'criados' : 'a criar'}: ${criados}`);
-    console.log(`  - sem etiqueta física (código gerado): ${semEtiqueta}`);
+    console.log(`  - sem etiqueta física (entram com codigo = null — gerado só ao imprimir): ${semEtiqueta}`);
     console.log(`  - com etiqueta duplicada (sufixo -A/-B): ${duplicados}`);
     console.log(`Itens pulados (codigo já existia no banco): ${pulados}`);
     if (resumoDuplicados.length) {
