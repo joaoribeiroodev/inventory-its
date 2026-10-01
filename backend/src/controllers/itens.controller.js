@@ -9,25 +9,47 @@ const ROTULOS_SITUACAO = {
     ruim: 'Ruim',
 };
 
-// GET /itens — listagem completa (painel web), com filtros simples
-const listar = asyncHandler(async (req, res) => {
-    const { setorId, situacao, busca } = req.query;
+// Monta o "where" da listagem/exportação a partir dos filtros da
+// query string. Usado tanto em listar() quanto em exportarXlsx() pra
+// manter os dois sempre em sincronia.
+//
+// Dois ajustes importantes aqui (a busca estava "quebrada" antes
+// disso):
+//  - `mode: 'insensitive'` em todo campo de texto: sem isso, o
+//    Postgres compara "contains" com diferença entre maiúsculas e
+//    minúsculas (ex. buscar "notebook" não achava "Notebook Dell").
+//  - busca também olha numeroEtiqueta, não só codigo — necessário
+//    agora que muitos itens ficam com codigo = null até a etiqueta
+//    ser impressa (ver codigoGerado.js), mas já têm numeroEtiqueta
+//    física lida/importada.
+function construirFiltro({ setorId, situacao, busca }) {
+    const buscaLimpa = busca?.trim();
 
+    return {
+        ...(setorId ? { setorAtualId: BigInt(setorId) } : {}),
+        ...(situacao ? { situacaoAtual: situacao } : {}),
+        ...(buscaLimpa
+            ? {
+                  OR: [
+                      { codigo: { contains: buscaLimpa, mode: 'insensitive' } },
+                      { descricao: { contains: buscaLimpa, mode: 'insensitive' } },
+                      { numeroEtiqueta: { contains: buscaLimpa, mode: 'insensitive' } },
+                  ],
+              }
+            : {}),
+    };
+}
+
+// GET /itens — listagem completa (painel web), com filtros simples.
+// Ordenada por setor (e depois descrição) por padrão, pra lista já
+// sair organizada por setor sem precisar de nenhum filtro — itens
+// sem setor (setorAtualId null) caem no final (NULLS LAST é o padrão
+// do Postgres pra ASC).
+const listar = asyncHandler(async (req, res) => {
     const itens = await prisma.item.findMany({
-        where: {
-            ...(setorId ? { setorAtualId: BigInt(setorId) } : {}),
-            ...(situacao ? { situacaoAtual: situacao } : {}),
-            ...(busca
-                ? {
-                      OR: [
-                          { codigo: { contains: busca } },
-                          { descricao: { contains: busca } },
-                      ],
-                  }
-                : {}),
-        },
+        where: construirFiltro(req.query),
         include: { setorAtual: true },
-        orderBy: { criadoEm: 'desc' },
+        orderBy: [{ setorAtual: { nome: 'asc' } }, { descricao: 'asc' }],
     });
 
     res.json(itens);
@@ -36,23 +58,10 @@ const listar = asyncHandler(async (req, res) => {
 // GET /itens/exportar/xlsx — relatório da lista de itens em planilha
 // formatada (mesmos filtros da listagem do painel).
 const exportarXlsx = asyncHandler(async (req, res) => {
-    const { setorId, situacao, busca } = req.query;
-
     const itens = await prisma.item.findMany({
-        where: {
-            ...(setorId ? { setorAtualId: BigInt(setorId) } : {}),
-            ...(situacao ? { situacaoAtual: situacao } : {}),
-            ...(busca
-                ? {
-                      OR: [
-                          { codigo: { contains: busca } },
-                          { descricao: { contains: busca } },
-                      ],
-                  }
-                : {}),
-        },
+        where: construirFiltro(req.query),
         include: { setorAtual: true },
-        orderBy: { criadoEm: 'desc' },
+        orderBy: [{ setorAtual: { nome: 'asc' } }, { descricao: 'asc' }],
     });
 
     const workbook = new ExcelJS.Workbook();
@@ -237,14 +246,19 @@ const listarHistorico = asyncHandler(async (req, res) => {
 //     QR/código de barras, ou digitada na mão) — usamos esse número
 //     direto como código, sem inventar nada.
 //  2. O item não tem etiqueta física nenhuma ainda — NÃO geramos
-//     código nenhum aqui. Ele fica com codigo=null (não entra na
-//     listagem de "pendente de etiqueta" tecnicamente ele já entra,
-//     já que etiquetaImpressa é false por padrão) até alguém decidir
+//     código nenhum aqui. Ele fica com codigo=null até alguém decidir
 //     imprimir uma etiqueta pra ele de verdade — é só nesse momento
 //     (gerar lote, adicionar a um lote ou baixar o CSV avulso do
 //     item — ver lotes.controller.js e exportarCsv abaixo) que um
 //     número é gerado, pra nunca existir código no sistema sem
 //     existir etiqueta física pra ele (ver conversa com o João).
+//
+// etiquetaImpressa acompanha isso: item com etiqueta física (caso 1)
+// já está com etiqueta "resolvida" fisicamente, então nasce com
+// etiquetaImpressa=true — não faz sentido aparecer como "pendente"
+// numa etiqueta que já existe colada no equipamento. Só o caso 2
+// nasce pendente de verdade (false), e vira true quando alguém manda
+// imprimir via lote/CSV avulso.
 const criar = asyncHandler(async (req, res) => {
     const { descricao, categoria, setorInicialId, situacaoInicial, numeroEtiqueta } = req.body;
 
@@ -263,6 +277,7 @@ const criar = asyncHandler(async (req, res) => {
                 categoria: categoria ?? null,
                 setorAtualId: setorInicialId ? BigInt(setorInicialId) : null,
                 situacaoAtual: situacaoInicial ?? 'bom',
+                etiquetaImpressa: !!codigo,
                 criadoPor: BigInt(req.usuario.id),
             },
             include: { setorAtual: true },

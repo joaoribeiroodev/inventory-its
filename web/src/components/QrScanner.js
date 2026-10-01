@@ -15,23 +15,42 @@ export default function QrScanner({ onLeitura, ativo }) {
 
         let cancelado = false;
 
-        import('html5-qrcode').then(({ Html5Qrcode }) => {
+        import('html5-qrcode').then(({ Html5Qrcode, Html5QrcodeSupportedFormats }) => {
             if (cancelado) return;
 
-            const instancia = new Html5Qrcode(elementId);
+            // Precisa ler tanto QR Code (etiquetas geradas pelo sistema)
+            // quanto Code-128 (etiquetas de patrimônio físicas já
+            // existentes — ver levantamento patrimonial). Deixando
+            // explícito aqui porque, sem isso, algumas combinações de
+            // navegador/fallback nativo da lib restringem o scan só a
+            // QR Code, e aí bipar um código de barras de patrimônio
+            // nunca gera leitura nenhuma — nem chega a pesquisar o
+            // item no backend.
+            const instancia = new Html5Qrcode(elementId, {
+                formatsToSupport: [
+                    Html5QrcodeSupportedFormats.QR_CODE,
+                    Html5QrcodeSupportedFormats.CODE_128,
+                ],
+                verbose: false,
+            });
             scannerRef.current = instancia;
 
             instancia
                 .start(
                     { facingMode: 'environment' },
-                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    // Sem qrbox: escaneia o frame inteiro da câmera, em
+                    // vez de só um quadrado central de 250x250 — uma
+                    // etiqueta de código de barras é bem mais larga que
+                    // alta, e o recorte quadrado pequeno cortava a
+                    // etiqueta fora da área lida na maioria dos ângulos.
+                    { fps: 10 },
                     (textoDecodificado) => {
                         onLeitura(textoDecodificado);
                     },
                     () => {
                         // erro de decodificação de um frame específico —
-                        // acontece o tempo todo enquanto o QR não está
-                        // enquadrado direito, não é um problema real.
+                        // acontece o tempo todo enquanto a etiqueta não
+                        // está enquadrada direito, não é um problema real.
                     }
                 )
                 .catch((err) => {

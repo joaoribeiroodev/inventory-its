@@ -107,7 +107,13 @@ async function main() {
                         descricao: linha.descricao,
                         situacaoAtual: linha.situacao,
                         setorAtualId: typeof setorAtualId === 'object' ? null : setorAtualId,
-                        etiquetaImpressa: false,
+                        // Item com etiqueta de patrimônio física (codigo
+                        // != null) já está com etiqueta resolvida — não é
+                        // "pendente", a etiqueta já existe colada no
+                        // equipamento. Só quem entra com codigo = null
+                        // (sem etiqueta nenhuma) nasce pendente de
+                        // verdade (ver mesma regra em itens.controller.js).
+                        etiquetaImpressa: !!codigo,
                     },
                 });
             } catch (err) {

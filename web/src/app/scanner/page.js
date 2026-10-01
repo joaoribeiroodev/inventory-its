@@ -23,6 +23,7 @@ function LeitorDeQrCode() {
     const [ativo, setAtivo] = useState(true);
     const [buscando, setBuscando] = useState(false);
     const [erro, setErro] = useState(null);
+    const [codigoManual, setCodigoManual] = useState('');
     // Preenchido quando a etiqueta lida está duplicada entre mais de
     // um item (ver levantamento patrimonial) — nesse caso não dá pra
     // ir direto pro item, tem que deixar a pessoa escolher qual bem
@@ -58,7 +59,14 @@ function LeitorDeQrCode() {
     function handleTentarNovamente() {
         setErro(null);
         setCandidatosAmbiguos(null);
+        setCodigoManual('');
         setAtivo(true);
+    }
+
+    function handleBuscarManual(e) {
+        e.preventDefault();
+        if (!codigoManual.trim()) return;
+        handleLeitura(codigoManual);
     }
 
     return (
@@ -66,7 +74,7 @@ function LeitorDeQrCode() {
             <div className="page-header">
                 <div>
                     <h1>Bipar item</h1>
-                    <p className="subtitle">Leia o QR Code da etiqueta pela webcam do computador</p>
+                    <p className="subtitle">Leia o QR Code ou o código de barras (patrimônio) da etiqueta pela webcam</p>
                 </div>
             </div>
 
@@ -83,6 +91,31 @@ function LeitorDeQrCode() {
                             Tentar novamente
                         </button>
                     </div>
+                )}
+
+                {!candidatosAmbiguos && (
+                    <form onSubmit={handleBuscarManual} style={{ marginTop: 16, borderTop: '1px solid var(--color-border)', paddingTop: 16 }}>
+                        <label className="form-label" htmlFor="codigo-manual">
+                            Câmera não lê a etiqueta? Digite ou cole o código
+                        </label>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                            <input
+                                id="codigo-manual"
+                                className="form-control"
+                                placeholder="Ex: 9637"
+                                value={codigoManual}
+                                onChange={(e) => setCodigoManual(e.target.value)}
+                                disabled={buscando}
+                            />
+                            <button type="submit" className="btn btn-secondary" disabled={buscando || !codigoManual.trim()}>
+                                Buscar
+                            </button>
+                        </div>
+                        <p className="form-hint" style={{ marginTop: 6 }}>
+                            Também funciona com um leitor de código de barras USB conectado — ele digita o
+                            número aqui e aperta Enter sozinho.
+                        </p>
+                    </form>
                 )}
 
                 {candidatosAmbiguos && (
