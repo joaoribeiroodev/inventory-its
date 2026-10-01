@@ -12,5 +12,6 @@ router.get('/', lotes.listar);
 router.post('/', lotes.criar);
 router.get('/:id', lotes.buscarPorId);
 router.get('/:id/csv', lotes.exportarCsv);
+router.post('/:id/itens', lotes.adicionarItens);
 
 module.exports = router;

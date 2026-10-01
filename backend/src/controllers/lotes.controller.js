@@ -113,4 +113,54 @@ const exportarCsv = asyncHandler(async (req, res) => {
     res.send(bufferLatin1);
 });
 
-module.exports = { listarPendentes, listar, buscarPorId, criar, exportarCsv };
+// POST /lotes/:id/itens — adiciona item(ns) a um lote já existente
+// (ex.: um item esquecido, ou um item que precisa ser reimpresso
+// junto com outros), sem precisar gerar um lote novo pra isso.
+const adicionarItens = asyncHandler(async (req, res) => {
+    const loteId = BigInt(req.params.id);
+    const { itemIds } = req.body;
+
+    if (!itemIds || !itemIds.length) {
+        return res.status(400).json({ erro: 'Informe ao menos um item' });
+    }
+
+    const lote = await prisma.loteEtiquetas.findUnique({ where: { id: loteId } });
+    if (!lote) {
+        return res.status(404).json({ erro: 'Lote não encontrado' });
+    }
+
+    const idsItens = itemIds.map(BigInt);
+
+    const atualizado = await prisma.$transaction(async (tx) => {
+        // Evita duplicar o vínculo se o item já estiver nesse lote
+        // (loteId+itemId é chave primária composta — ver schema).
+        const existentes = await tx.loteEtiquetasItem.findMany({
+            where: { loteId, itemId: { in: idsItens } },
+            select: { itemId: true },
+        });
+        const jaVinculados = new Set(existentes.map((e) => e.itemId.toString()));
+        const novosIds = idsItens.filter((id) => !jaVinculados.has(id.toString()));
+
+        if (novosIds.length === 0) {
+            return tx.loteEtiquetas.findUnique({ where: { id: loteId } });
+        }
+
+        await tx.loteEtiquetasItem.createMany({
+            data: novosIds.map((itemId) => ({ loteId, itemId })),
+        });
+
+        await tx.item.updateMany({
+            where: { id: { in: novosIds } },
+            data: { etiquetaImpressa: true, loteEtiquetaId: loteId },
+        });
+
+        return tx.loteEtiquetas.update({
+            where: { id: loteId },
+            data: { quantidadeItens: { increment: novosIds.length } },
+        });
+    });
+
+    res.json(atualizado);
+});
+
+module.exports = { listarPendentes, listar, buscarPorId, criar, exportarCsv, adicionarItens };

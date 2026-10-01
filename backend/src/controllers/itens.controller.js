@@ -330,6 +330,36 @@ const excluir = asyncHandler(async (req, res) => {
     res.status(204).end();
 });
 
+// GET /itens/:id/csv — exporta o próprio item no mesmo formato usado
+// na exportação de lote (codigo,descricao,setor), pra dar pra baixar
+// de novo/reimprimir a etiqueta de um item avulso sem precisar gerar
+// (ou achar) o lote inteiro em que ele entrou.
+const exportarCsv = asyncHandler(async (req, res) => {
+    const item = await prisma.item.findUnique({
+        where: { id: BigInt(req.params.id) },
+        include: { setorAtual: true },
+    });
+
+    if (!item) {
+        return res.status(404).json({ erro: 'Item não encontrado' });
+    }
+
+    const escapar = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    const linhas = [
+        'codigo,descricao,setor',
+        [escapar(item.codigo), escapar(item.descricao), escapar(item.setorAtual?.nome ?? '')].join(','),
+    ];
+    const csv = linhas.join('\n');
+
+    // Mesmo encoding ANSI/Windows-1252 usado na exportação de lote —
+    // ver comentário em lotes.controller.js#exportarCsv.
+    const bufferLatin1 = Buffer.from(csv, 'latin1');
+
+    res.setHeader('Content-Type', 'text/csv; charset=ISO-8859-1');
+    res.setHeader('Content-Disposition', `attachment; filename="${item.codigo}.csv"`);
+    res.send(bufferLatin1);
+});
+
 module.exports = {
     listar,
     exportarXlsx,
@@ -341,4 +371,5 @@ module.exports = {
     atualizar,
     registrarMovimentacao,
     excluir,
+    exportarCsv,
 };

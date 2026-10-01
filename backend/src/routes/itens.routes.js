@@ -12,6 +12,7 @@ router.get('/', itens.listar);
 router.get('/codigo/:codigo', itens.buscarPorCodigo);
 router.get('/:id', itens.buscarPorId);
 router.get('/:id/eventos', itens.listarHistorico);
+router.get('/:id/csv', itens.exportarCsv);
 
 router.post('/', autorizar('admin', 'cadastrador'), itens.criar);
 router.put('/:id', autorizar('admin', 'cadastrador'), itens.atualizar);

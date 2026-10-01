@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ProtectedRoute from '../../../components/ProtectedRoute';
+import Modal from '../../../components/Modal';
 import { useAuth } from '../../../contexts/AuthContext';
 import { api } from '../../../services/api';
 
@@ -30,6 +31,8 @@ function DetalheDoItem() {
     const [descricao, setDescricao] = useState('');
     const [categoria, setCategoria] = useState('');
     const [excluindo, setExcluindo] = useState(false);
+    const [baixandoCsv, setBaixandoCsv] = useState(false);
+    const [modalLoteAberto, setModalLoteAberto] = useState(false);
 
     const [editandoMovimentacao, setEditandoMovimentacao] = useState(false);
     const [setorSelecionado, setSetorSelecionado] = useState('');
@@ -77,6 +80,17 @@ function DetalheDoItem() {
         }
     }
 
+    async function baixarCsv() {
+        setBaixandoCsv(true);
+        try {
+            await api.baixarCsvItem(id, item.codigo);
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setBaixandoCsv(false);
+        }
+    }
+
     async function salvarMovimentacao() {
         setSalvandoMovimentacao(true);
         try {
@@ -118,10 +132,18 @@ function DetalheDoItem() {
                         <>
                             <h1 style={{ marginTop: 4, marginBottom: 4 }}>{item.descricao}</h1>
                             {item.categoria && <p className="subtitle">{item.categoria}</p>}
-                            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                                 {podeEditar && (
                                     <button className="btn btn-secondary btn-sm" onClick={() => setEditando(true)}>
                                         Editar
+                                    </button>
+                                )}
+                                <button className="btn btn-secondary btn-sm" onClick={baixarCsv} disabled={baixandoCsv}>
+                                    {baixandoCsv ? 'Baixando...' : 'Baixar CSV'}
+                                </button>
+                                {podeEditar && (
+                                    <button className="btn btn-secondary btn-sm" onClick={() => setModalLoteAberto(true)}>
+                                        Adicionar a lote
                                     </button>
                                 )}
                                 {podeExcluir && (
@@ -223,6 +245,81 @@ function DetalheDoItem() {
                     </table>
                 </div>
             </div>
+
+            <ModalAdicionarALote
+                item={item}
+                aberto={modalLoteAberto}
+                onFechar={() => setModalLoteAberto(false)}
+                onAdicionado={carregar}
+            />
         </div>
+    );
+}
+
+function ModalAdicionarALote({ item, aberto, onFechar, onAdicionado }) {
+    const [lotes, setLotes] = useState([]);
+    const [loteId, setLoteId] = useState('');
+    const [carregando, setCarregando] = useState(false);
+    const [salvando, setSalvando] = useState(false);
+
+    useEffect(() => {
+        if (!aberto) return;
+        setLoteId('');
+        setCarregando(true);
+        api.listarLotes().then(setLotes).finally(() => setCarregando(false));
+    }, [aberto]);
+
+    async function handleAdicionar(e) {
+        e.preventDefault();
+        if (!loteId) return;
+
+        setSalvando(true);
+        try {
+            await api.adicionarItemALote(loteId, item.id);
+            onAdicionado();
+            onFechar();
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setSalvando(false);
+        }
+    }
+
+    return (
+        <Modal titulo={`Adicionar ${item.codigo} a um lote`} aberto={aberto} onFechar={onFechar}>
+            {carregando ? (
+                <div className="loading-shell" style={{ minHeight: 100 }}>Carregando...</div>
+            ) : (
+                <form onSubmit={handleAdicionar}>
+                    <div className="form-group">
+                        <label className="form-label">Lote</label>
+                        <select
+                            className="form-control"
+                            value={loteId}
+                            onChange={(e) => setLoteId(e.target.value)}
+                            required
+                        >
+                            <option value="">Selecione um lote...</option>
+                            {lotes.map((l) => (
+                                <option key={l.id} value={l.id}>
+                                    #{l.id} — {new Date(l.criadoEm).toLocaleString('pt-BR')} ({l.quantidadeItens} itens)
+                                </option>
+                            ))}
+                        </select>
+                        {lotes.length === 0 && (
+                            <p className="subtitle" style={{ marginTop: 8 }}>Nenhum lote gerado ainda.</p>
+                        )}
+                    </div>
+                    <div className="modal-actions">
+                        <button type="button" className="btn btn-secondary" onClick={onFechar} disabled={salvando}>
+                            Cancelar
+                        </button>
+                        <button type="submit" className="btn btn-primary" disabled={salvando || !loteId}>
+                            {salvando ? 'Adicionando...' : 'Adicionar'}
+                        </button>
+                    </div>
+                </form>
+            )}
+        </Modal>
     );
 }
