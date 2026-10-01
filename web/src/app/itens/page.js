@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../contexts/AuthContext';
@@ -22,7 +22,10 @@ export default function ItensPage() {
 function ListaDeItens() {
     const { usuario } = useAuth();
     const [itens, setItens] = useState([]);
+    const [setores, setSetores] = useState([]);
     const [busca, setBusca] = useState('');
+    const [setorId, setSetorId] = useState('');
+    const [situacao, setSituacao] = useState('');
     const [carregando, setCarregando] = useState(true);
     const [exportando, setExportando] = useState(false);
     const [selecionados, setSelecionados] = useState(new Set());
@@ -31,36 +34,80 @@ function ListaDeItens() {
     const podeCriar = usuario?.papel === 'admin' || usuario?.papel === 'cadastrador';
     // Mesma regra do detalhe do item: só admin exclui.
     const podeExcluir = usuario?.papel === 'admin';
+    const temFiltroAtivo = !!(busca || setorId || situacao);
 
-    async function carregar(filtros = {}) {
+    function filtrosAtuais() {
+        const filtros = {};
+        if (busca.trim()) filtros.busca = busca.trim();
+        if (setorId) filtros.setorId = setorId;
+        if (situacao) filtros.situacao = situacao;
+        return filtros;
+    }
+
+    async function carregar(filtros) {
         setCarregando(true);
         try {
             setItens(await api.listarItens(filtros));
             setSelecionados(new Set());
+        } catch (err) {
+            alert(err.message);
         } finally {
             setCarregando(false);
         }
     }
 
+    // Carrega a lista de setores uma vez, pro filtro por setor.
     useEffect(() => {
-        carregar();
+        api.listarSetores().then(setSetores).catch(() => {});
     }, []);
 
-    function handleBuscar(e) {
-        e.preventDefault();
-        carregar(busca ? { busca } : {});
+    // Busca ao vivo: qualquer mudança nos filtros (texto, setor ou
+    // situação) recarrega a lista automaticamente, com um pequeno
+    // atraso pra não disparar uma requisição a cada letra digitada.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            carregar(filtrosAtuais());
+        }, 300);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [busca, setorId, situacao]);
+
+    function handleLimparFiltros() {
+        setBusca('');
+        setSetorId('');
+        setSituacao('');
     }
 
     async function handleExportar() {
         setExportando(true);
         try {
-            await api.baixarXlsxItens(busca ? { busca } : {});
+            await api.baixarXlsxItens(filtrosAtuais());
         } catch (err) {
             alert(err.message);
         } finally {
             setExportando(false);
         }
     }
+
+    // A lista já vem ordenada por setor do backend (ver listar() em
+    // itens.controller.js) — aqui só agrupa pra exibição, com um
+    // cabeçalho por setor em vez de repetir o nome em toda linha.
+    // Itens sem setor caem no grupo "Sem setor", sempre por último.
+    const grupos = useMemo(() => {
+        const porNome = new Map();
+        for (const item of itens) {
+            const nome = item.setorAtual?.nome ?? null;
+            if (!porNome.has(nome)) porNome.set(nome, []);
+            porNome.get(nome).push(item);
+        }
+        const entradas = [...porNome.entries()];
+        entradas.sort(([a], [b]) => {
+            if (a === null) return 1;
+            if (b === null) return -1;
+            return 0; // já vem ordenado do backend, só precisa empurrar "null" pro fim
+        });
+        return entradas.map(([nome, itensDoGrupo]) => ({ nome: nome ?? 'Sem setor', itensDoGrupo }));
+    }, [itens]);
 
     function alternarSelecao(id) {
         setSelecionados((atual) => {
@@ -86,7 +133,7 @@ function ListaDeItens() {
         setExcluindo(true);
         try {
             await api.excluirItensEmLote([...selecionados]);
-            await carregar(busca ? { busca } : {});
+            await carregar(filtrosAtuais());
         } catch (err) {
             alert(err.message);
         } finally {
@@ -111,14 +158,37 @@ function ListaDeItens() {
                 </div>
             </div>
 
-            <form onSubmit={handleBuscar} className="form-group" style={{ maxWidth: 420 }}>
-                <input
-                    className="form-control"
-                    placeholder="Buscar por código ou descrição..."
-                    value={busca}
-                    onChange={(e) => setBusca(e.target.value)}
-                />
-            </form>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 4 }}>
+                <div className="form-group" style={{ flex: '1 1 260px', minWidth: 220, marginBottom: 0 }}>
+                    <input
+                        className="form-control"
+                        placeholder="Buscar por código, etiqueta ou descrição..."
+                        value={busca}
+                        onChange={(e) => setBusca(e.target.value)}
+                    />
+                </div>
+                <div className="form-group" style={{ flex: '0 1 200px', minWidth: 160, marginBottom: 0 }}>
+                    <select className="form-control" value={setorId} onChange={(e) => setSetorId(e.target.value)}>
+                        <option value="">Todos os setores</option>
+                        {setores.map((s) => (
+                            <option key={s.id} value={s.id}>{s.nome}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="form-group" style={{ flex: '0 1 160px', minWidth: 140, marginBottom: 0 }}>
+                    <select className="form-control" value={situacao} onChange={(e) => setSituacao(e.target.value)}>
+                        <option value="">Bom e ruim</option>
+                        {Object.entries(ROTULOS_SITUACAO).map(([valor, rotulo]) => (
+                            <option key={valor} value={valor}>{rotulo}</option>
+                        ))}
+                    </select>
+                </div>
+                {temFiltroAtivo && (
+                    <button type="button" className="btn btn-secondary" onClick={handleLimparFiltros}>
+                        Limpar filtros
+                    </button>
+                )}
+            </div>
 
             {podeExcluir && selecionados.size > 0 && (
                 <div
@@ -158,46 +228,53 @@ function ListaDeItens() {
                                 )}
                                 <th>Código</th>
                                 <th>Descrição</th>
-                                <th>Setor</th>
                                 <th>Situação</th>
                                 <th>Etiqueta</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {itens.map((item) => (
-                                <tr key={item.id}>
-                                    {podeExcluir && (
-                                        <td>
-                                            <input
-                                                type="checkbox"
-                                                checked={selecionados.has(item.id)}
-                                                onChange={() => alternarSelecao(item.id)}
-                                                aria-label={`Selecionar item ${item.codigo ?? item.id}`}
-                                            />
+                            {grupos.map((grupo) => (
+                                <React.Fragment key={grupo.nome}>
+                                    <tr>
+                                        <td colSpan={podeExcluir ? 5 : 4} className="table-group-header">
+                                            {grupo.nome} <span className="subtitle">({grupo.itensDoGrupo.length})</span>
                                         </td>
-                                    )}
-                                    <td>
-                                        <Link href={`/itens/${item.id}`} style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>
-                                            {item.codigo ?? 'Sem código ainda'}
-                                        </Link>
-                                    </td>
-                                    <td>{item.descricao}</td>
-                                    <td>{item.setorAtual?.nome ?? '—'}</td>
-                                    <td>
-                                        <span className={`badge badge-${item.situacaoAtual}`}>
-                                            {ROTULOS_SITUACAO[item.situacaoAtual] ?? item.situacaoAtual}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span className={`badge ${item.etiquetaImpressa ? 'badge-bom' : 'badge-neutro'}`}>
-                                            {item.etiquetaImpressa ? 'Impressa' : 'Pendente'}
-                                        </span>
-                                    </td>
-                                </tr>
+                                    </tr>
+                                    {grupo.itensDoGrupo.map((item) => (
+                                        <tr key={item.id}>
+                                            {podeExcluir && (
+                                                <td>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selecionados.has(item.id)}
+                                                        onChange={() => alternarSelecao(item.id)}
+                                                        aria-label={`Selecionar item ${item.codigo ?? item.id}`}
+                                                    />
+                                                </td>
+                                            )}
+                                            <td>
+                                                <Link href={`/itens/${item.id}`} style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>
+                                                    {item.codigo ?? 'Sem código ainda'}
+                                                </Link>
+                                            </td>
+                                            <td>{item.descricao}</td>
+                                            <td>
+                                                <span className={`badge badge-${item.situacaoAtual}`}>
+                                                    {ROTULOS_SITUACAO[item.situacaoAtual] ?? item.situacaoAtual}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className={`badge ${item.etiquetaImpressa ? 'badge-bom' : 'badge-neutro'}`}>
+                                                    {item.etiquetaImpressa ? 'Impressa' : 'Pendente'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </React.Fragment>
                             ))}
                             {itens.length === 0 && (
                                 <tr>
-                                    <td colSpan={podeExcluir ? 6 : 5} className="table-empty">Nenhum item encontrado</td>
+                                    <td colSpan={podeExcluir ? 5 : 4} className="table-empty">Nenhum item encontrado</td>
                                 </tr>
                             )}
                         </tbody>
