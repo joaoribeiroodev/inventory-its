@@ -90,10 +90,15 @@ export const api = {
     criarUsuario: (dados) => requisitar('/usuarios', { method: 'POST', body: JSON.stringify(dados) }),
     atualizarUsuario: (id, dados) =>
         requisitar(`/usuarios/${id}`, { method: 'PUT', body: JSON.stringify(dados) }),
+    // Mesma rota de atualizarUsuario (o backend já aceita "senha" no
+    // corpo e faz o hash) — só um nome mais claro pro caso de uso.
+    alterarSenhaUsuario: (id, senha) =>
+        requisitar(`/usuarios/${id}`, { method: 'PUT', body: JSON.stringify({ senha }) }),
 
     // lotes de etiqueta
     listarLotesPendentes: () => requisitar('/lotes/pendentes'),
     listarLotes: () => requisitar('/lotes'),
+    buscarLote: (id) => requisitar(`/lotes/${id}`),
     gerarLote: (dados) => requisitar('/lotes', { method: 'POST', body: JSON.stringify(dados) }),
 
     // O download do CSV precisa do header Authorization, então não

@@ -197,9 +197,32 @@ const listarHistorico = asyncHandler(async (req, res) => {
 });
 
 // POST /itens — cadastro de novo item (exige conexão; papel:
-// admin ou cadastrador). O código do QR é gerado pelo servidor
-// a partir do ID autoincrement, garantindo unicidade sem risco
-// de colisão entre dispositivos.
+// admin ou cadastrador).
+//
+// O código do QR NÃO usa mais o id autoincrement direto — se usasse,
+// excluir um item nunca liberaria o número dele (o Postgres não reusa
+// valores de sequence), e o código ficaria crescendo pra sempre mesmo
+// com poucos itens ativos. Em vez disso, procuramos o menor número
+// "INV-NNNNNN" ainda não usado entre os itens existentes, preenchendo
+// os buracos deixados por exclusões.
+const proximoCodigoDisponivel = async (tx) => {
+    const itens = await tx.item.findMany({
+        where: { codigo: { startsWith: 'INV-' } },
+        select: { codigo: true },
+    });
+
+    const numerosUsados = new Set();
+    for (const { codigo } of itens) {
+        const numero = parseInt(codigo.slice(4), 10);
+        if (!Number.isNaN(numero)) numerosUsados.add(numero);
+    }
+
+    let proximo = 1;
+    while (numerosUsados.has(proximo)) proximo++;
+
+    return `INV-${String(proximo).padStart(6, '0')}`;
+};
+
 const criar = asyncHandler(async (req, res) => {
     const { descricao, categoria, setorInicialId, situacaoInicial } = req.body;
 
@@ -208,22 +231,17 @@ const criar = asyncHandler(async (req, res) => {
     }
 
     const item = await prisma.$transaction(async (tx) => {
-        const criado = await tx.item.create({
+        const codigo = await proximoCodigoDisponivel(tx);
+
+        return tx.item.create({
             data: {
-                codigo: `TEMP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                codigo,
                 descricao,
                 categoria: categoria ?? null,
                 setorAtualId: setorInicialId ? BigInt(setorInicialId) : null,
                 situacaoAtual: situacaoInicial ?? 'bom',
                 criadoPor: BigInt(req.usuario.id),
             },
-        });
-
-        const codigoFinal = `INV-${String(criado.id).padStart(6, '0')}`;
-
-        return tx.item.update({
-            where: { id: criado.id },
-            data: { codigo: codigoFinal },
             include: { setorAtual: true },
         });
     });

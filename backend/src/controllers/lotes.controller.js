@@ -20,6 +20,25 @@ const listar = asyncHandler(async (req, res) => {
     res.json(lotes);
 });
 
+// GET /lotes/:id — detalhe do lote, com a lista de itens que foram
+// incluídos nele (pra identificar o que exatamente foi impresso,
+// já que o histórico sozinho só mostra data/quantidade).
+const buscarPorId = asyncHandler(async (req, res) => {
+    const lote = await prisma.loteEtiquetas.findUnique({
+        where: { id: BigInt(req.params.id) },
+        include: {
+            usuario: { select: { nome: true } },
+            itens: { include: { item: { include: { setorAtual: true } } } },
+        },
+    });
+
+    if (!lote) {
+        return res.status(404).json({ erro: 'Lote não encontrado' });
+    }
+
+    res.json(lote);
+});
+
 // POST /lotes — gera um novo lote a partir dos itens pendentes
 // (ou de uma lista específica de itemIds, se enviada no body)
 const criar = asyncHandler(async (req, res) => {
@@ -94,4 +113,4 @@ const exportarCsv = asyncHandler(async (req, res) => {
     res.send(bufferLatin1);
 });
 
-module.exports = { listarPendentes, listar, criar, exportarCsv };
+module.exports = { listarPendentes, listar, buscarPorId, criar, exportarCsv };

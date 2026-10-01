@@ -10,6 +10,7 @@ router.use(autorizar('admin', 'cadastrador')); // geração de etiqueta é taref
 router.get('/pendentes', lotes.listarPendentes);
 router.get('/', lotes.listar);
 router.post('/', lotes.criar);
+router.get('/:id', lotes.buscarPorId);
 router.get('/:id/csv', lotes.exportarCsv);
 
 module.exports = router;

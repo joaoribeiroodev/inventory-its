@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import Modal from '../../components/Modal';
 import { api } from '../../services/api';
 
 export default function LotesPage() {
@@ -17,6 +18,7 @@ function GestaoDeLotes() {
     const [lotes, setLotes] = useState([]);
     const [gerando, setGerando] = useState(false);
     const [carregando, setCarregando] = useState(true);
+    const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
 
     async function carregar() {
         setCarregando(true);
@@ -118,9 +120,14 @@ function GestaoDeLotes() {
                                     <td>{lote.quantidadeItens}</td>
                                     <td>{lote.usuario?.nome}</td>
                                     <td>
-                                        <button className="btn btn-secondary btn-sm" onClick={() => api.baixarCsvLote(lote.id)}>
-                                            Baixar CSV
-                                        </button>
+                                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                                            <button className="btn btn-secondary btn-sm" onClick={() => setLoteSelecionadoId(lote.id)}>
+                                                Ver itens
+                                            </button>
+                                            <button className="btn btn-secondary btn-sm" onClick={() => api.baixarCsvLote(lote.id)}>
+                                                Baixar CSV
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -133,6 +140,59 @@ function GestaoDeLotes() {
                     </table>
                 </div>
             </div>
+
+            <ModalItensDoLote loteId={loteSelecionadoId} onFechar={() => setLoteSelecionadoId(null)} />
         </div>
+    );
+}
+
+function ModalItensDoLote({ loteId, onFechar }) {
+    const [lote, setLote] = useState(null);
+    const [carregando, setCarregando] = useState(false);
+
+    useEffect(() => {
+        if (!loteId) {
+            setLote(null);
+            return;
+        }
+        setCarregando(true);
+        api.buscarLote(loteId)
+            .then(setLote)
+            .finally(() => setCarregando(false));
+    }, [loteId]);
+
+    return (
+        <Modal titulo={lote ? `Itens do lote #${lote.id}` : 'Itens do lote'} aberto={!!loteId} onFechar={onFechar}>
+            {carregando || !lote ? (
+                <div className="loading-shell" style={{ minHeight: 120 }}>Carregando...</div>
+            ) : (
+                <>
+                    <p className="subtitle" style={{ marginTop: -8, marginBottom: 12 }}>
+                        Gerado em {new Date(lote.criadoEm).toLocaleString('pt-BR')} por {lote.usuario?.nome}
+                        {lote.observacao && ` — ${lote.observacao}`}
+                    </p>
+                    <div className="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descrição</th>
+                                    <th>Setor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {lote.itens.map(({ item }) => (
+                                    <tr key={item.id}>
+                                        <td style={{ fontWeight: 600 }}>{item.codigo}</td>
+                                        <td>{item.descricao}</td>
+                                        <td>{item.setorAtual?.nome ?? '—'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            )}
+        </Modal>
     );
 }
