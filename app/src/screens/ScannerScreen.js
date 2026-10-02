@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, SafeAreaView } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { buscarItemPorCodigo, buscarItensPorEtiqueta } from '../database/queries';
+import { buscarItensPorCodigo } from '../database/queries';
 import Botao from '../components/Botao';
 import { colors, radius, spacing, typography } from '../theme';
 
@@ -30,20 +30,11 @@ export default function ScannerScreen({ navigation }) {
         setTravado(true);
 
         const codigo = data.trim();
-        const item = await buscarItemPorCodigo(codigo);
-
-        if (item) {
-            navigation.navigate('ItemDetalhe', { codigo: item.codigo });
-            // Libera a trava depois de um instante, para quando o usuário voltar pra essa tela
-            setTimeout(() => setTravado(false), 1500);
-            return;
-        }
-
-        // Não achou pelo código exato — pode ser uma etiqueta de
-        // patrimônio física colada em mais de um bem (ver levantamento
-        // patrimonial). Nesse caso vários itens compartilham o mesmo
-        // número de etiqueta; deixa a pessoa escolher qual é o certo.
-        const candidatos = await buscarItensPorEtiqueta(codigo);
+        // "codigo" não é mais único no cache local (uma etiqueta física
+        // pode estar colada em mais de um bem por engano — ver
+        // "patrimonio_duplicado") — a busca sempre pode voltar 0, 1 ou
+        // vários itens.
+        const candidatos = await buscarItensPorCodigo(codigo);
 
         if (candidatos.length === 0) {
             // Nada no cache local com esse código — ou é um item realmente
@@ -68,7 +59,7 @@ export default function ScannerScreen({ navigation }) {
         }
 
         if (candidatos.length === 1) {
-            navigation.navigate('ItemDetalhe', { codigo: candidatos[0].codigo });
+            navigation.navigate('ItemDetalhe', { id: candidatos[0].id });
             setTimeout(() => setTravado(false), 1500);
             return;
         }
@@ -80,7 +71,7 @@ export default function ScannerScreen({ navigation }) {
                 ...candidatos.map((c) => ({
                     text: `${c.descricao} — ${c.setor_atual ?? 'sem setor'}`,
                     onPress: () => {
-                        navigation.navigate('ItemDetalhe', { codigo: c.codigo });
+                        navigation.navigate('ItemDetalhe', { id: c.id });
                         setTimeout(() => setTravado(false), 1500);
                     },
                 })),

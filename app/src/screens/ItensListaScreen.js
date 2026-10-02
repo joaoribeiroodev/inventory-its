@@ -44,14 +44,19 @@ export default function ItensListaScreen({ navigation }) {
             )}
             <FlatList
                 data={itens}
-                keyExtractor={(item) => item.codigo}
+                keyExtractor={(item) => String(item.id)}
                 contentContainerStyle={{ padding: spacing.md, paddingTop: podeCriar ? 0 : spacing.md }}
                 ListEmptyComponent={<Text style={styles.vazio}>Nenhum item encontrado</Text>}
                 renderItem={({ item }) => {
                     const situacao = infoSituacao(item.situacaoAtual);
                     return (
                         <View style={styles.linha}>
-                            <Text style={styles.codigo}>{item.codigo}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                                <Text style={styles.codigo}>{item.codigo}</Text>
+                                {!!item.patrimonioDuplicado && (
+                                    <Badge texto="Duplicado" bg={colors.warningBg} cor={colors.warning} />
+                                )}
+                            </View>
                             <Text style={styles.descricao}>{item.descricao}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 6 }}>
                                 <Badge texto={situacao.rotulo} bg={situacao.bg} cor={situacao.cor} />

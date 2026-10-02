@@ -9,18 +9,18 @@ import Badge from '../components/Badge';
 import { colors, spacing, infoSituacao } from '../theme';
 
 export default function HistoricoScreen({ route }) {
-    const { codigo } = route.params;
+    const { id } = route.params;
     const [eventos, setEventos] = useState(null);
 
     useEffect(() => {
         (async () => {
-            // A API de histórico trabalha por ID numérico; buscamos o
-            // item pelo código primeiro para obter o ID.
-            const item = await api.buscarItemPorCodigo(codigo).catch(() => null);
-            const lista = item ? await api.buscarHistoricoItem(item.id) : [];
+            // "codigo" não é mais único, então a navegação já vem com o
+            // id numérico do item (ver ItemDetalheScreen.js) — sem mais
+            // precisar descobrir o id a partir do código.
+            const lista = await api.buscarHistoricoItem(id).catch(() => []);
             setEventos(lista);
         })();
-    }, [codigo]);
+    }, [id]);
 
     if (!eventos) return <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />;
 

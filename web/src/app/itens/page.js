@@ -257,9 +257,16 @@ function ListaDeItens() {
                                         </td>
                                     )}
                                     <td>
-                                        <Link href={`/itens/${item.id}`} style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>
-                                            {item.codigo ?? 'Sem código ainda'}
-                                        </Link>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <Link href={`/itens/${item.id}`} style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>
+                                                {item.codigo ?? 'Sem código ainda'}
+                                            </Link>
+                                            {item.patrimonioDuplicado && (
+                                                <span className="badge badge-aviso" title="Essa etiqueta física está colada em mais de um item">
+                                                    Duplicado
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td>{item.descricao}</td>
                                     <td>{item.setorAtual?.nome ?? '—'}</td>

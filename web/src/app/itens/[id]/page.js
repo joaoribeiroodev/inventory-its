@@ -112,9 +112,19 @@ function DetalheDoItem() {
 
     return (
         <div>
-            <p className="subtitle" style={{ marginBottom: 0, fontWeight: 600 }}>
+            <p className="subtitle" style={{ marginBottom: 0, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
                 {item.codigo ?? 'Sem código ainda — gerado ao imprimir a etiqueta'}
+                {item.patrimonioDuplicado && <span className="badge badge-aviso">Etiqueta duplicada</span>}
             </p>
+
+            {item.patrimonioDuplicado && (
+                <p className="form-hint" style={{ marginTop: 4, maxWidth: 560 }}>
+                    Essa etiqueta de patrimônio física ({item.codigo}) está colada em mais de um item —
+                    outro bem no sistema usa o mesmo número. Ao bipar essa etiqueta, o sistema mostra os
+                    itens pra escolher o certo. Vale conferir fisicamente e recolocar uma etiqueta nova
+                    num dos dois, se possível.
+                </p>
+            )}
 
             <div className="page-header" style={{ marginTop: 4 }}>
                 <div style={{ flex: 1, minWidth: 240 }}>

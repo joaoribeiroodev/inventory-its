@@ -463,6 +463,11 @@ tbody tr:hover {
     color: var(--color-text-muted);
 }
 
+.badge-aviso {
+    background: var(--color-warning-bg);
+    color: var(--color-warning);
+}
+
 /* ---------- login ---------- */
 
 .login-page {

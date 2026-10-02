@@ -41,7 +41,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "8911-A"
+    "codigo": "8911"
   },
   {
     "linha": 9,
@@ -52,7 +52,7 @@
     "descricao": "MONITOR",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "8911-B"
+    "codigo": "8911"
   },
   {
     "linha": 10,
@@ -63,7 +63,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "8930-A"
+    "codigo": "8930"
   },
   {
     "linha": 11,
@@ -74,7 +74,7 @@
     "descricao": "MONITOR",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "8930-B"
+    "codigo": "8930"
   },
   {
     "linha": 12,
@@ -85,7 +85,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "8956-A"
+    "codigo": "8956"
   },
   {
     "linha": 13,
@@ -96,7 +96,7 @@
     "descricao": "MONITOR",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "8956-B"
+    "codigo": "8956"
   },
   {
     "linha": 14,
@@ -129,7 +129,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "8983-A"
+    "codigo": "8983"
   },
   {
     "linha": 17,
@@ -206,7 +206,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9008-A"
+    "codigo": "9008"
   },
   {
     "linha": 24,
@@ -217,7 +217,7 @@
     "descricao": "MONITOR",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "9008-B"
+    "codigo": "9008"
   },
   {
     "linha": 25,
@@ -239,7 +239,7 @@
     "descricao": "DESKTOP",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "9011-A"
+    "codigo": "9011"
   },
   {
     "linha": 27,
@@ -250,7 +250,7 @@
     "descricao": "DESKTOP",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9015-A"
+    "codigo": "9015"
   },
   {
     "linha": 28,
@@ -261,7 +261,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9123-A"
+    "codigo": "9123"
   },
   {
     "linha": 29,
@@ -272,7 +272,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9152-A"
+    "codigo": "9152"
   },
   {
     "linha": 30,
@@ -283,7 +283,7 @@
     "descricao": "MONITOR",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "9152-B"
+    "codigo": "9152"
   },
   {
     "linha": 31,
@@ -316,7 +316,7 @@
     "descricao": "NOBREAK",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9467-A"
+    "codigo": "9467"
   },
   {
     "linha": 34,
@@ -327,7 +327,7 @@
     "descricao": "NOBREAK",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "9467-B"
+    "codigo": "9467"
   },
   {
     "linha": 35,
@@ -338,7 +338,7 @@
     "descricao": "NOBREAK",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9476-A"
+    "codigo": "9476"
   },
   {
     "linha": 36,
@@ -349,7 +349,7 @@
     "descricao": "NOBREAK",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "9476-B"
+    "codigo": "9476"
   },
   {
     "linha": 37,
@@ -360,7 +360,7 @@
     "descricao": "NOBREAK",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9483-A"
+    "codigo": "9483"
   },
   {
     "linha": 38,
@@ -371,7 +371,7 @@
     "descricao": "NOBREAK",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "9483-B"
+    "codigo": "9483"
   },
   {
     "linha": 39,
@@ -382,7 +382,7 @@
     "descricao": "NOBREAK",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9484-A"
+    "codigo": "9484"
   },
   {
     "linha": 40,
@@ -393,7 +393,7 @@
     "descricao": "NOBREAK",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "9484-B"
+    "codigo": "9484"
   },
   {
     "linha": 41,
@@ -404,7 +404,7 @@
     "descricao": "NOBREAK",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "9484-C"
+    "codigo": "9484"
   },
   {
     "linha": 42,
@@ -426,7 +426,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9617-A"
+    "codigo": "9617"
   },
   {
     "linha": 44,
@@ -437,7 +437,7 @@
     "descricao": "DESKTOP",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "9617-B"
+    "codigo": "9617"
   },
   {
     "linha": 45,
@@ -448,7 +448,7 @@
     "descricao": "DESKTOP",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9629-A"
+    "codigo": "9629"
   },
   {
     "linha": 46,
@@ -525,7 +525,7 @@
     "descricao": "MONITOR",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "9726-A"
+    "codigo": "9726"
   },
   {
     "linha": 53,
@@ -624,7 +624,7 @@
     "descricao": "TELEVISÃO",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9888-A"
+    "codigo": "9888"
   },
   {
     "linha": 62,
@@ -635,7 +635,7 @@
     "descricao": "TELEVISÃO",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "9888-B"
+    "codigo": "9888"
   },
   {
     "linha": 63,
@@ -701,7 +701,7 @@
     "descricao": "IMPRESSORA",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "10093-A"
+    "codigo": "10093"
   },
   {
     "linha": 69,
@@ -712,7 +712,7 @@
     "descricao": "IMPRESSORA DE TICKET",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "10093-B"
+    "codigo": "10093"
   },
   {
     "linha": 70,
@@ -767,7 +767,7 @@
     "descricao": "SWITCH",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "10303-A"
+    "codigo": "10303"
   },
   {
     "linha": 75,
@@ -778,7 +778,7 @@
     "descricao": "SWITCH",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "10303-B"
+    "codigo": "10303"
   },
   {
     "linha": 76,
@@ -921,7 +921,7 @@
     "descricao": "IMPRESSORA",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "10372-A"
+    "codigo": "10372"
   },
   {
     "linha": 89,
@@ -932,7 +932,7 @@
     "descricao": "IMPRESSORA DE TICKET",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "10372-B"
+    "codigo": "10372"
   },
   {
     "linha": 90,
@@ -1009,7 +1009,7 @@
     "descricao": "DVR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "10394-A"
+    "codigo": "10394"
   },
   {
     "linha": 97,
@@ -1020,7 +1020,7 @@
     "descricao": "DVR",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "10394-B"
+    "codigo": "10394"
   },
   {
     "linha": 98,
@@ -1042,7 +1042,7 @@
     "descricao": "TELEFONE",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "10408-A"
+    "codigo": "10408"
   },
   {
     "linha": 100,
@@ -1053,7 +1053,7 @@
     "descricao": "TELEFONE",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "10408-B"
+    "codigo": "10408"
   },
   {
     "linha": 101,
@@ -1064,7 +1064,7 @@
     "descricao": "TELEFONE",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "10408-C"
+    "codigo": "10408"
   },
   {
     "linha": 102,
@@ -2120,7 +2120,7 @@
     "descricao": "RACK",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "8723-A"
+    "codigo": "8723"
   },
   {
     "linha": 198,
@@ -2153,7 +2153,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "8983-B"
+    "codigo": "8983"
   },
   {
     "linha": 201,
@@ -2164,7 +2164,7 @@
     "descricao": "DESKTOP",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9011-B"
+    "codigo": "9011"
   },
   {
     "linha": 202,
@@ -2175,7 +2175,7 @@
     "descricao": "DESKTOP",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9015-B"
+    "codigo": "9015"
   },
   {
     "linha": 203,
@@ -2208,7 +2208,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9123-B"
+    "codigo": "9123"
   },
   {
     "linha": 206,
@@ -2219,7 +2219,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9127-A"
+    "codigo": "9127"
   },
   {
     "linha": 207,
@@ -2230,7 +2230,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9127-B"
+    "codigo": "9127"
   },
   {
     "linha": 208,
@@ -2296,7 +2296,7 @@
     "descricao": "DESKTOP",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9603-A"
+    "codigo": "9603"
   },
   {
     "linha": 214,
@@ -2307,7 +2307,7 @@
     "descricao": "DESKTOP",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9603-B"
+    "codigo": "9603"
   },
   {
     "linha": 215,
@@ -2318,7 +2318,7 @@
     "descricao": "DESKTOP",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9603-C"
+    "codigo": "9603"
   },
   {
     "linha": 216,
@@ -2450,7 +2450,7 @@
     "descricao": "MINI PC DELL",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9629-B"
+    "codigo": "9629"
   },
   {
     "linha": 228,
@@ -2505,7 +2505,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9642-A"
+    "codigo": "9642"
   },
   {
     "linha": 233,
@@ -2516,7 +2516,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9642-B"
+    "codigo": "9642"
   },
   {
     "linha": 234,
@@ -2824,7 +2824,7 @@
     "descricao": "DESKTOP",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9698-A"
+    "codigo": "9698"
   },
   {
     "linha": 262,
@@ -2835,7 +2835,7 @@
     "descricao": "DESKTOP",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9698-B"
+    "codigo": "9698"
   },
   {
     "linha": 263,
@@ -2901,7 +2901,7 @@
     "descricao": "MONITOR",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9726-B"
+    "codigo": "9726"
   },
   {
     "linha": 269,
@@ -3088,7 +3088,7 @@
     "descricao": "IMPRESSORA DE CARTÃO - ZEBRA",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9917-A"
+    "codigo": "9917"
   },
   {
     "linha": 286,
@@ -3099,7 +3099,7 @@
     "descricao": "IMPRESSORA DE CARTÃO - ZEBRA",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9917-B"
+    "codigo": "9917"
   },
   {
     "linha": 287,
@@ -3110,7 +3110,7 @@
     "descricao": "IMPRESSORA DE CARTÃO - ZEBRA",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "9917-C"
+    "codigo": "9917"
   },
   {
     "linha": 288,
@@ -3231,7 +3231,7 @@
     "descricao": "NOBREAK",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "10135-A"
+    "codigo": "10135"
   },
   {
     "linha": 299,
@@ -3242,7 +3242,7 @@
     "descricao": "NOBREAK",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "10135-B"
+    "codigo": "10135"
   },
   {
     "linha": 300,
@@ -3308,7 +3308,7 @@
     "descricao": "NOBREAK",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "10192-A"
+    "codigo": "10192"
   },
   {
     "linha": 306,
@@ -3319,7 +3319,7 @@
     "descricao": "NOBREAK",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "10192-B"
+    "codigo": "10192"
   },
   {
     "linha": 307,
@@ -3572,7 +3572,7 @@
     "descricao": "NOBREAK",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "10308-A"
+    "codigo": "10308"
   },
   {
     "linha": 330,
@@ -3583,7 +3583,7 @@
     "descricao": "NOBREAK",
     "situacao": "bom",
     "duplicado": true,
-    "codigo": "10308-B"
+    "codigo": "10308"
   },
   {
     "linha": 331,
@@ -5805,7 +5805,7 @@
     "descricao": "RACK",
     "situacao": "ruim",
     "duplicado": true,
-    "codigo": "8723-B"
+    "codigo": "8723"
   },
   {
     "linha": 533,

@@ -39,6 +39,11 @@ export async function enviarEventosPendentes() {
 
     const payload = pendentes.map((e) => ({
         uuidEvento: e.uuid_evento,
+        // itemId é o identificador preferido (ver eventos.controller.js
+        // no backend) — "itemCodigo" não é mais único e fica só como
+        // fallback pra eventos antigos que já estavam na fila antes
+        // dessa mudança.
+        itemId: e.item_id,
         itemCodigo: e.item_codigo,
         setorNovoId: e.setor_novo_id,
         situacaoNova: e.situacao_nova,

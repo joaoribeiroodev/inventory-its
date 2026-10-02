@@ -81,19 +81,26 @@ model Item {
   // num lote de impressão (se não tem — o código só é gerado nesse
   // momento, pra nunca existir código no sistema sem existir etiqueta
   // física correspondente — ver conversa com o João).
-  codigo            String?   @unique @db.VarChar(30)
+  // NÃO é @unique de propósito (era antes — ver histórico): uma
+  // etiqueta de patrimônio física pode estar colada em mais de um bem
+  // por engano (ver levantamento patrimonial de 2026), e nesse caso
+  // dois itens DIFERENTES têm o mesmo "codigo" de verdade — sem
+  // inventar sufixo tipo "-A"/"-B", que fazia o código de barras
+  // bipado não bater com o item achado (ver conversa com o João).
+  // "patrimonioDuplicado" sinaliza esse caso visualmente, e
+  // buscarPorCodigo() já devolve os vários itens pra quem bipou
+  // escolher o certo.
+  codigo            String?   @db.VarChar(30)
   descricao         String    @db.VarChar(255)
   categoria         String?   @db.VarChar(100)
 
   // Número bruto lido do código de barras da etiqueta de patrimônio
-  // física (ex.: "9637"). Igual ao "codigo" na maioria dos casos —
-  // só diverge quando a mesma etiqueta física foi colada em mais de
-  // um bem por engano (ver levantamento patrimonial): aí "codigo"
-  // ganha um sufixo ("9637-A", "9637-B") pra continuar único no
-  // sistema, mas "numeroEtiqueta" guarda o valor real do código de
-  // barras pros dois, permitindo achar ambos ao escanear a etiqueta.
-  // Fica nulo pra itens sem etiqueta física (código gerado pelo
-  // sistema).
+  // física (ex.: "9637"). Sempre igual ao "codigo" quando o item tem
+  // etiqueta física (os dois só divergem pra item sem etiqueta nenhuma,
+  // que nasce com codigo=null até ganhar um número gerado pelo sistema
+  // — ver codigoGerado.js). Mantido como campo à parte porque é o
+  // valor "bruto" físico, útil pra busca/depuração mesmo se "codigo"
+  // um dia precisar de alguma transformação.
   numeroEtiqueta       String?   @map("numero_etiqueta") @db.VarChar(30)
   // true quando numeroEtiqueta é compartilhado por mais de um item —
   // sinaliza no painel que esse bem física precisa ser re-etiquetado.
@@ -118,6 +125,10 @@ model Item {
   @@index([setorAtualId])
   @@index([etiquetaImpressa])
   @@index([numeroEtiqueta])
+  // codigo perdeu o @unique (duplicidade física é permitida agora),
+  // mas continua sendo a busca mais comum do sistema — precisa do
+  // índice à parte, já que não ganha mais um automático.
+  @@index([codigo])
 }
 
 model EventoMovimentacao {

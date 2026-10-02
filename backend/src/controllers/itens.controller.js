@@ -143,8 +143,10 @@ const sync = asyncHandler(async (req, res) => {
         // pro cache offline do app.
         where: { codigo: { not: null } },
         select: {
+            id: true,
             codigo: true,
             numeroEtiqueta: true,
+            patrimonioDuplicado: true,
             descricao: true,
             categoria: true,
             situacaoAtual: true,
@@ -154,8 +156,10 @@ const sync = asyncHandler(async (req, res) => {
 
     res.json(
         itens.map((item) => ({
+            id: item.id,
             codigo: item.codigo,
             numeroEtiqueta: item.numeroEtiqueta,
+            patrimonioDuplicado: item.patrimonioDuplicado,
             descricao: item.descricao,
             categoria: item.categoria,
             situacaoAtual: item.situacaoAtual,
@@ -167,45 +171,36 @@ const sync = asyncHandler(async (req, res) => {
 // GET /itens/codigo/:codigo — busca pelo texto lido do código de
 // barras/QR Code (modo online).
 //
-// Primeiro tenta bater exatamente com o "codigo" do sistema (caso
-// normal: QR gerado por nós, ou etiqueta de patrimônio física sem
-// duplicidade — nesses dois casos codigo === numeroEtiqueta). Se não
-// achar, cai pro "numeroEtiqueta": cobre o caso de uma etiqueta de
-// patrimônio física que foi colada em mais de um bem (ver levantamento
-// patrimonial) — aí vários itens têm o mesmo numeroEtiqueta mas
-// "codigo" com sufixo (-A, -B...). Se mais de um item bater, devolve
-// a lista pra quem escaneou escolher qual é o item físico certo, em
-// vez de abrir um item errado.
+// "codigo" NÃO é mais único no banco (ver schema.prisma): uma
+// etiqueta de patrimônio física pode estar colada em mais de um bem
+// por engano, e aí dois itens diferentes têm o mesmo código de
+// verdade — sem sufixo inventado. Por isso a busca é sempre por
+// "quantos itens batem com esse texto" (por codigo OU numeroEtiqueta,
+// que são defensivamente checados os dois): 0 → não encontrado, 1 →
+// abre direto, mais de 1 → devolve a lista pra quem bipou escolher o
+// item físico certo (ver "patrimonioDuplicado").
 const buscarPorCodigo = asyncHandler(async (req, res) => {
     // Trim defensivo aqui também (não só no front): um leitor de
     // código de barras USB, ou a câmera decodificando uma etiqueta
     // mal impressa, às vezes manda espaço/quebra de linha sobrando
-    // no texto — sem isso, a comparação exata com "codigo" falha
-    // silenciosamente e cai pro 404, mesmo o item existindo.
+    // no texto — sem isso, a comparação exata falha silenciosamente
+    // e cai pro 404, mesmo o item existindo.
     const codigo = String(req.params.codigo ?? '').trim();
 
     if (!codigo) {
         return res.status(404).json({ erro: 'Item não encontrado' });
     }
 
-    const direto = await prisma.item.findUnique({
-        where: { codigo },
-        include: { setorAtual: true },
-    });
-    if (direto) {
-        return res.json(direto);
-    }
-
     let candidatos = await prisma.item.findMany({
-        where: { numeroEtiqueta: codigo },
+        where: { OR: [{ codigo }, { numeroEtiqueta: codigo }] },
         include: { setorAtual: true },
     });
 
     // Fallback extra: etiqueta de patrimônio lida com zero(s) à
     // esquerda a mais ou a menos do que está gravado no banco (ex.
     // câmera/leitor devolve "09637" e o cadastro tem "9637", ou
-    // vice-versa). Só entra aqui se nada bateu nas duas tentativas
-    // exatas acima, e só pra código puramente numérico.
+    // vice-versa). Só entra aqui se nada bateu na tentativa exata
+    // acima, e só pra código puramente numérico.
     if (candidatos.length === 0 && /^\d+$/.test(codigo)) {
         const semZerosEsquerda = codigo.replace(/^0+(?=\d)/, '');
         if (semZerosEsquerda !== codigo) {
@@ -281,6 +276,14 @@ const listarHistorico = asyncHandler(async (req, res) => {
 // numa etiqueta que já existe colada no equipamento. Só o caso 2
 // nasce pendente de verdade (false), e vira true quando alguém manda
 // imprimir via lote/CSV avulso.
+//
+// "codigo" não é mais único no banco (ver schema.prisma) — cadastrar
+// um item com um numeroEtiqueta que já existe em outro item NÃO é
+// mais um erro 409: é um caso real (a mesma etiqueta física colada em
+// mais de um bem por engano). Em vez de bloquear, marca os dois como
+// "patrimonioDuplicado" pra aparecer sinalizado no painel/app, e quem
+// bipar essa etiqueta recebe a lista dos itens pra escolher o certo
+// (ver buscarPorCodigo acima).
 const criar = asyncHandler(async (req, res) => {
     const { descricao, categoria, setorInicialId, situacaoInicial, numeroEtiqueta } = req.body;
 
@@ -290,11 +293,17 @@ const criar = asyncHandler(async (req, res) => {
 
     const codigo = numeroEtiqueta ? String(numeroEtiqueta).trim() : null;
 
-    try {
-        const item = await prisma.item.create({
+    const item = await prisma.$transaction(async (tx) => {
+        const outrosComMesmoCodigo = codigo
+            ? await tx.item.findMany({ where: { codigo }, select: { id: true } })
+            : [];
+        const duplicado = outrosComMesmoCodigo.length > 0;
+
+        const novoItem = await tx.item.create({
             data: {
                 codigo,
                 numeroEtiqueta: codigo,
+                patrimonioDuplicado: duplicado,
                 descricao,
                 categoria: categoria ?? null,
                 setorAtualId: setorInicialId ? BigInt(setorInicialId) : null,
@@ -305,15 +314,17 @@ const criar = asyncHandler(async (req, res) => {
             include: { setorAtual: true },
         });
 
-        res.status(201).json(item);
-    } catch (err) {
-        // Código de patrimônio já cadastrado em outro item (constraint
-        // unique de "codigo") — caso normal de digitação, não é um 500.
-        if (err.code === 'P2002') {
-            return res.status(409).json({ erro: `Já existe um item com o código "${numeroEtiqueta}"` });
+        if (duplicado) {
+            await tx.item.updateMany({
+                where: { id: { in: outrosComMesmoCodigo.map((i) => i.id) } },
+                data: { patrimonioDuplicado: true },
+            });
         }
-        throw err;
-    }
+
+        return novoItem;
+    });
+
+    res.status(201).json(item);
 });
 
 // PUT /itens/:id — edição de dados cadastrais (descrição/categoria).

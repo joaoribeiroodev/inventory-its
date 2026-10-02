@@ -46,7 +46,8 @@ async function recomputarCacheItem(tx, itemId) {
  *   "eventos": [
  *     {
  *       "uuidEvento": "uuid-gerado-no-app",
- *       "itemCodigo": "INV-000042",
+ *       "itemId": "42",              // preferido — ver abaixo
+ *       "itemCodigo": "INV-000042",  // fallback legado — ver abaixo
  *       "setorNovoId": 3,            // opcional
  *       "situacaoNova": "bom",       // opcional
  *       "observacao": "...",         // opcional
@@ -55,6 +56,17 @@ async function recomputarCacheItem(tx, itemId) {
  *     ...
  *   ]
  * }
+ *
+ * "itemId" é o identificador preferido desde que "codigo" deixou de
+ * ser único no banco (etiqueta de patrimônio física duplicada entre
+ * dois itens — ver schema.prisma): resolver só por "codigo" seria
+ * ambíguo, podia aplicar a movimentação no item físico errado. Apps
+ * atualizados sempre mandam itemId; "itemCodigo" continua aceito só
+ * como fallback pra eventos que já estavam na fila offline de algum
+ * aparelho ANTES dessa mudança — nesse caso pega o primeiro item que
+ * bater com o código (melhor possível sem o id; a fila normalmente
+ * sincroniza assim que a conexão volta, então esse caso tende a
+ * desaparecer sozinho).
  */
 const sincronizar = asyncHandler(async (req, res) => {
     const { dispositivoIdentificador, eventos } = req.body;
@@ -79,9 +91,9 @@ const sincronizar = asyncHandler(async (req, res) => {
     const itensAfetados = new Set();
 
     for (const evento of eventos) {
-        const { uuidEvento, itemCodigo, setorNovoId, situacaoNova, observacao, timestampEvento } = evento;
+        const { uuidEvento, itemId, itemCodigo, setorNovoId, situacaoNova, observacao, timestampEvento } = evento;
 
-        if (!uuidEvento || !itemCodigo || !timestampEvento) {
+        if (!uuidEvento || (!itemId && !itemCodigo) || !timestampEvento) {
             resultados.push({ uuidEvento, status: 'erro', motivo: 'campos obrigatórios ausentes' });
             continue;
         }
@@ -93,7 +105,11 @@ const sincronizar = asyncHandler(async (req, res) => {
             continue;
         }
 
-        const item = await prisma.item.findUnique({ where: { codigo: itemCodigo } });
+        // Preferência por itemId (ver comentário acima) — "codigo" não
+        // é mais único, então só dá pra usar findUnique com o id.
+        const item = itemId
+            ? await prisma.item.findUnique({ where: { id: BigInt(itemId) } })
+            : await prisma.item.findFirst({ where: { codigo: itemCodigo } });
         if (!item) {
             resultados.push({ uuidEvento, status: 'erro', motivo: 'item não encontrado' });
             continue;

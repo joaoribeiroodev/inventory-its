@@ -7,9 +7,13 @@
 //    o que o código de barras físico devolve quando é escaneado.
 //  - Item com a MESMA etiqueta física repetida em mais de uma linha
 //    (ex. duas linhas com "9123") -> os dois SÃO importados, com
-//    codigo sufixado ("9123-A" / "9123-B") pra ficar único no banco,
-//    mas numeroEtiqueta igual nos dois, e patrimonioDuplicado = true
-//    (vira um aviso visual no painel).
+//    codigo = numeroEtiqueta IGUAL nos dois (sem sufixo "-A"/"-B" —
+//    um sufixo inventado fazia o código de barras bipado não bater
+//    com nenhum item de verdade, quebrando o propósito do sistema;
+//    "codigo" deixou de ser único no banco justamente por causa
+//    disso — ver schema.prisma), e patrimonioDuplicado = true nos
+//    dois (vira um aviso visual no painel/app; ao bipar essa
+//    etiqueta, o sistema mostra os dois itens pra escolher o certo).
 //  - Item sem etiqueta nenhuma ("SEM ETIQUETA" ou "NOVO(CAIXA)" —
 //    equipamento novo ainda na caixa) -> entra com codigo = null.
 //    NÃO geramos um número aqui: o código só é gerado na hora que

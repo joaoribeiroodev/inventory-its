@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as Crypto from 'expo-crypto';
-import { buscarItemPorCodigo, listarSetoresLocais, enfileirarEvento, aplicarEventoNoCacheLocal, aplicarEdicaoNoCacheLocal } from '../database/queries';
+import { buscarItemPorId, listarSetoresLocais, enfileirarEvento, aplicarEventoNoCacheLocal, aplicarEdicaoNoCacheLocal } from '../database/queries';
 import { useConnectivity } from '../contexts/ConnectivityContext';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
@@ -20,7 +20,7 @@ import { colors, spacing, typography, infoSituacao } from '../theme';
 const SITUACOES = ['bom', 'ruim'];
 
 export default function ItemDetalheScreen({ route, navigation }) {
-    const { codigo } = route.params;
+    const { id } = route.params;
     const { isOnline } = useConnectivity();
     const { usuario } = useAuth();
     const podeEditar = usuario?.papel === 'admin' || usuario?.papel === 'cadastrador';
@@ -38,7 +38,7 @@ export default function ItemDetalheScreen({ route, navigation }) {
 
     useEffect(() => {
         (async () => {
-            const itemAtual = await buscarItemPorCodigo(codigo);
+            const itemAtual = await buscarItemPorId(id);
             const setoresLocais = await listarSetoresLocais();
             setItem(itemAtual);
             setSetores(setoresLocais);
@@ -46,7 +46,7 @@ export default function ItemDetalheScreen({ route, navigation }) {
             const setorAtual = setoresLocais.find((s) => s.nome === itemAtual?.setor_atual);
             setSetorSelecionado(setorAtual?.id ?? null);
         })();
-    }, [codigo]);
+    }, [id]);
 
     if (!item) return <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />;
 
@@ -68,6 +68,7 @@ export default function ItemDetalheScreen({ route, navigation }) {
         // ordem de chegada ao servidor.
         await enfileirarEvento({
             uuidEvento: Crypto.randomUUID(),
+            itemId: item.id,
             itemCodigo: item.codigo,
             setorNovoId: mudouSetor ? setorSelecionado : null,
             situacaoNova: mudouSituacao ? situacaoSelecionada : null,
@@ -75,7 +76,7 @@ export default function ItemDetalheScreen({ route, navigation }) {
         });
 
         // Reflete a mudança no cache local na hora, sem esperar sync
-        await aplicarEventoNoCacheLocal(item.codigo, {
+        await aplicarEventoNoCacheLocal(item.id, {
             setorNovoNome: mudouSetor ? novoSetorNome : null,
             situacaoNova: mudouSituacao ? situacaoSelecionada : null,
         });
@@ -84,9 +85,9 @@ export default function ItemDetalheScreen({ route, navigation }) {
         navigation.goBack();
     }
 
-    // Edição cadastral (descrição/categoria) exige conexão — o cache
-    // local não guarda o id numérico do item (só o código), então
-    // buscamos o item completo no servidor ao abrir o formulário.
+    // Edição cadastral (descrição/categoria) exige conexão — mas agora
+    // o cache local guarda o id numérico do item, então não precisa
+    // mais de um passo extra só pra descobrir o id no servidor.
     function iniciarEdicao() {
         setDescricaoEdit(item.descricao);
         setCategoriaEdit(item.categoria ?? '');
@@ -96,12 +97,11 @@ export default function ItemDetalheScreen({ route, navigation }) {
     async function salvarEdicao() {
         setSalvandoEdicao(true);
         try {
-            const itemServidor = await api.buscarItemPorCodigo(item.codigo);
-            await api.atualizarItem(itemServidor.id, {
+            await api.atualizarItem(item.id, {
                 descricao: descricaoEdit,
                 categoria: categoriaEdit || null,
             });
-            await aplicarEdicaoNoCacheLocal(item.codigo, {
+            await aplicarEdicaoNoCacheLocal(item.id, {
                 descricao: descricaoEdit,
                 categoria: categoriaEdit || null,
             });
@@ -118,7 +118,18 @@ export default function ItemDetalheScreen({ route, navigation }) {
 
     return (
         <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.container}>
-            <Text style={styles.codigo}>{item.codigo}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                <Text style={styles.codigo}>{item.codigo}</Text>
+                {!!item.patrimonio_duplicado && (
+                    <Badge texto="Etiqueta duplicada" bg={colors.warningBg} cor={colors.warning} />
+                )}
+            </View>
+            {!!item.patrimonio_duplicado && (
+                <Text style={styles.avisoDuplicado}>
+                    Essa etiqueta física está colada em mais de um item — outro bem no sistema usa o
+                    mesmo número. Confira fisicamente qual é este.
+                </Text>
+            )}
 
             {editando ? (
                 <Cartao style={{ marginTop: spacing.xs }}>
@@ -181,7 +192,7 @@ export default function ItemDetalheScreen({ route, navigation }) {
             {isOnline ? (
                 <Text
                     style={styles.linkHistorico}
-                    onPress={() => navigation.navigate('Historico', { codigo: item.codigo })}
+                    onPress={() => navigation.navigate('Historico', { id: item.id })}
                 >
                     Ver histórico completo
                 </Text>
@@ -197,6 +208,7 @@ export default function ItemDetalheScreen({ route, navigation }) {
 const styles = StyleSheet.create({
     container: { padding: spacing.lg, paddingBottom: spacing.xl },
     codigo: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+    avisoDuplicado: { ...typography.body, fontSize: 12, color: colors.warning, marginTop: 4, marginBottom: spacing.xs },
     descricao: { ...typography.title, marginBottom: 2 },
     categoria: { fontSize: 14, color: colors.textMuted, marginBottom: spacing.xs },
     label: { ...typography.label, marginTop: spacing.sm, marginBottom: spacing.xs },

@@ -76,15 +76,26 @@ export async function upsertItens(itens) {
     await db.withTransactionAsync(async () => {
         for (const item of itens) {
             await db.runAsync(
-                `INSERT INTO itens (codigo, numero_etiqueta, descricao, categoria, situacao_atual, setor_atual)
-                 VALUES (?, ?, ?, ?, ?, ?)
-                 ON CONFLICT(codigo) DO UPDATE SET
+                `INSERT INTO itens (id, codigo, numero_etiqueta, patrimonio_duplicado, descricao, categoria, situacao_atual, setor_atual)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 ON CONFLICT(id) DO UPDATE SET
+                    codigo = excluded.codigo,
                     numero_etiqueta = excluded.numero_etiqueta,
+                    patrimonio_duplicado = excluded.patrimonio_duplicado,
                     descricao = excluded.descricao,
                     categoria = excluded.categoria,
                     situacao_atual = excluded.situacao_atual,
                     setor_atual = excluded.setor_atual`,
-                [item.codigo, item.numeroEtiqueta ?? null, item.descricao, item.categoria, item.situacaoAtual, item.setorAtual]
+                [
+                    String(item.id),
+                    item.codigo,
+                    item.numeroEtiqueta ?? null,
+                    item.patrimonioDuplicado ? 1 : 0,
+                    item.descricao,
+                    item.categoria,
+                    item.situacaoAtual,
+                    item.setorAtual,
+                ]
             );
         }
     });
@@ -103,18 +114,22 @@ export async function upsertSetores(setores) {
     });
 }
 
-export async function buscarItemPorCodigo(codigo) {
+export async function buscarItemPorId(id) {
     const db = await getDb();
-    return db.getFirstAsync('SELECT * FROM itens WHERE codigo = ?', [codigo]);
+    return db.getFirstAsync('SELECT * FROM itens WHERE id = ?', [String(id)]);
 }
 
-// Fallback pro caso de uma etiqueta de patrimônio física duplicada
-// entre vários itens (ver levantamento patrimonial): o "codigo" de
-// cada um ganha um sufixo (-A, -B) pra ficar único, mas o número bruto
-// lido do código de barras bate com "numero_etiqueta" dos dois.
-export async function buscarItensPorEtiqueta(numeroEtiqueta) {
+// Busca por código/etiqueta pode achar MAIS DE UM item — "codigo" não
+// é mais único (uma etiqueta física colada em mais de um bem por
+// engano, ver "patrimonio_duplicado"). Quem chama decide o que fazer
+// com 0, 1 ou vários resultados (ver ScannerScreen.js: 1 → abre
+// direto, mais de 1 → deixa escolher).
+export async function buscarItensPorCodigo(codigo) {
     const db = await getDb();
-    return db.getAllAsync('SELECT * FROM itens WHERE numero_etiqueta = ?', [numeroEtiqueta]);
+    return db.getAllAsync(
+        'SELECT * FROM itens WHERE codigo = ? OR numero_etiqueta = ?',
+        [codigo, codigo]
+    );
 }
 
 export async function listarItensLocais() {
@@ -129,14 +144,14 @@ export async function listarSetoresLocais() {
 
 // Aplica localmente o resultado de um evento já confirmado, para
 // a tela refletir a mudança na hora, sem esperar o próximo full sync.
-export async function aplicarEventoNoCacheLocal(itemCodigo, { setorNovoNome, situacaoNova }) {
+export async function aplicarEventoNoCacheLocal(itemId, { setorNovoNome, situacaoNova }) {
     const db = await getDb();
     await db.runAsync(
         `UPDATE itens SET
             setor_atual = COALESCE(?, setor_atual),
             situacao_atual = COALESCE(?, situacao_atual)
-         WHERE codigo = ?`,
-        [setorNovoNome ?? null, situacaoNova ?? null, itemCodigo]
+         WHERE id = ?`,
+        [setorNovoNome ?? null, situacaoNova ?? null, String(itemId)]
     );
 }
 
@@ -144,14 +159,14 @@ export async function aplicarEventoNoCacheLocal(itemCodigo, { setorNovoNome, sit
 // confirmada pelo servidor — mesma lógica de aplicarEventoNoCacheLocal,
 // mas pros campos que não passam pela fila de eventos (ver PUT
 // /itens/:id no backend: exige conexão, sem fila offline).
-export async function aplicarEdicaoNoCacheLocal(itemCodigo, { descricao, categoria }) {
+export async function aplicarEdicaoNoCacheLocal(itemId, { descricao, categoria }) {
     const db = await getDb();
     await db.runAsync(
         `UPDATE itens SET
             descricao = COALESCE(?, descricao),
             categoria = ?
-         WHERE codigo = ?`,
-        [descricao ?? null, categoria ?? null, itemCodigo]
+         WHERE id = ?`,
+        [descricao ?? null, categoria ?? null, String(itemId)]
     );
 }
 
@@ -161,11 +176,12 @@ export async function enfileirarEvento(evento) {
     const db = await getDb();
     await db.runAsync(
         `INSERT INTO eventos_pendentes
-            (uuid_evento, item_codigo, setor_novo_id, situacao_nova, observacao, timestamp_evento)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+            (uuid_evento, item_id, item_codigo, setor_novo_id, situacao_nova, observacao, timestamp_evento)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
             evento.uuidEvento,
-            evento.itemCodigo,
+            String(evento.itemId),
+            evento.itemCodigo ?? null,
             evento.setorNovoId ?? null,
             evento.situacaoNova ?? null,
             evento.observacao ?? null,
