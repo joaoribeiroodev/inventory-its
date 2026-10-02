@@ -126,10 +126,29 @@ export async function buscarItemPorId(id) {
 // direto, mais de 1 → deixa escolher).
 export async function buscarItensPorCodigo(codigo) {
     const db = await getDb();
-    return db.getAllAsync(
+    const exatos = await db.getAllAsync(
         'SELECT * FROM itens WHERE codigo = ? OR numero_etiqueta = ?',
         [codigo, codigo]
     );
+    if (exatos.length > 0) return exatos;
+
+    // Mesmo fallback do backend (ver buscarPorCodigo em
+    // itens.controller.js, que faltava aqui): etiqueta de patrimônio
+    // lida com zero(s) à esquerda a mais ou a menos do que está
+    // gravado no cache local. Sem isso o app offline dava "não
+    // encontrado" pra item que existe, só porque bipou "09637" e o
+    // cache tem "9637" (ou vice-versa).
+    if (/^\d+$/.test(codigo)) {
+        const semZerosEsquerda = codigo.replace(/^0+(?=\d)/, '');
+        if (semZerosEsquerda !== codigo) {
+            return db.getAllAsync(
+                'SELECT * FROM itens WHERE codigo = ? OR numero_etiqueta = ?',
+                [semZerosEsquerda, semZerosEsquerda]
+            );
+        }
+    }
+
+    return exatos;
 }
 
 export async function listarItensLocais() {

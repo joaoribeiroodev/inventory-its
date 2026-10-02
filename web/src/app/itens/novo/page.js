@@ -99,6 +99,13 @@ function FormularioNovoItem() {
                             Deixe em branco se ainda não tem — o código é gerado automaticamente só na hora
                             de imprimir uma etiqueta nova.
                         </p>
+                        {codigoPreenchido && (
+                            <p className="form-hint" style={{ color: 'var(--color-warning)', fontWeight: 600 }}>
+                                Esse número veio da leitura da câmera — confira se bate com o que está
+                                impresso na etiqueta física antes de salvar (código de barras de etiqueta
+                                antiga às vezes é lido com um dígito trocado).
+                            </p>
+                        )}
                     </div>
 
                     <div className="form-group">

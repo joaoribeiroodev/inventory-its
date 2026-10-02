@@ -1,16 +1,26 @@
 // Tela principal do app: abre a câmera, lê o QR Code, resolve o
 // item no cache LOCAL (funciona 100% offline) e navega pro detalhe.
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, Alert, SafeAreaView } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { buscarItensPorCodigo } from '../database/queries';
 import Botao from '../components/Botao';
 import { colors, radius, spacing, typography } from '../theme';
 
+// Quantas leituras seguidas IGUAIS a câmera precisa decodificar antes
+// de confiar no resultado. Código de barras Code-128 (etiquetas de
+// patrimônio físicas antigas) é bem mais sensível a erro de leitura
+// num único frame do que QR Code — um ângulo ruim ou desfoque troca um
+// dígito e devolve um número que não existe (ou existe, mas é de
+// outro item). Exigir a mesma leitura 2x seguidas filtra esse ruído
+// sem atraso perceptível pro usuário.
+const LEITURAS_NECESSARIAS = 2;
+
 export default function ScannerScreen({ navigation }) {
     const [permissao, solicitarPermissao] = useCameraPermissions();
     const [travado, setTravado] = useState(false);
+    const ultimaLeituraRef = useRef({ valor: null, contagem: 0 });
 
     if (!permissao) {
         return <View style={styles.container} />;
@@ -27,9 +37,24 @@ export default function ScannerScreen({ navigation }) {
 
     async function handleQrLido({ data }) {
         if (travado) return; // evita disparar várias leituras da mesma etiqueta
-        setTravado(true);
 
         const codigo = data.trim();
+        const ultima = ultimaLeituraRef.current;
+
+        // Só age depois de ver a MESMA leitura se repetir — um frame
+        // isolado com erro (comum em código de barras Code-128 das
+        // etiquetas físicas antigas) não passa a confiança sozinho.
+        if (ultima.valor === codigo) {
+            ultima.contagem += 1;
+        } else {
+            ultimaLeituraRef.current = { valor: codigo, contagem: 1 };
+            return;
+        }
+        if (ultima.contagem < LEITURAS_NECESSARIAS) return;
+
+        ultimaLeituraRef.current = { valor: null, contagem: 0 };
+        setTravado(true);
+
         // "codigo" não é mais único no cache local (uma etiqueta física
         // pode estar colada em mais de um bem por engano — ver
         // "patrimonio_duplicado") — a busca sempre pode voltar 0, 1 ou

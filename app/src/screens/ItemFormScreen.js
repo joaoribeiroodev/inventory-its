@@ -56,9 +56,16 @@ export default function ItemFormScreen({ navigation, route }) {
         <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.container}>
             <Cartao>
                 {codigoPreenchido ? (
-                    <Text style={styles.aviso}>
-                        Etiqueta "{codigoPreenchido}" não encontrada — cadastre o item correspondente
-                    </Text>
+                    <>
+                        <Text style={styles.aviso}>
+                            Etiqueta "{codigoPreenchido}" não encontrada — cadastre o item correspondente
+                        </Text>
+                        <Text style={styles.avisoConfirmar}>
+                            Esse número veio da leitura da câmera — confira se bate com o que está impresso
+                            na etiqueta física antes de salvar (código de barras de etiqueta antiga às vezes
+                            é lido com um dígito trocado).
+                        </Text>
+                    </>
                 ) : null}
                 <Campo label="Descrição" placeholder="Ex: Notebook Dell Latitude" value={descricao} onChangeText={setDescricao} />
                 <Campo label="Categoria (opcional)" placeholder="Ex: Informática" value={categoria} onChangeText={setCategoria} />
@@ -97,6 +104,13 @@ const styles = StyleSheet.create({
     aviso: {
         ...typography.body,
         color: colors.accent,
+        fontWeight: '600',
+        marginBottom: spacing.sm,
+    },
+    avisoConfirmar: {
+        ...typography.body,
+        fontSize: 12,
+        color: colors.warning,
         fontWeight: '600',
         marginBottom: spacing.sm,
     },

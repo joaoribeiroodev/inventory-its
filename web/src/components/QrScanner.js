@@ -6,13 +6,25 @@ import React, { useEffect, useRef } from 'react';
 // app/scanner/page.js), porque a biblioteca html5-qrcode acessa
 // APIs do navegador (câmera) que não existem durante a
 // renderização no servidor.
+// Quantas leituras seguidas IGUAIS a câmera precisa decodificar antes
+// de confiar no resultado. Código de barras Code-128 (etiquetas de
+// patrimônio físicas antigas) é bem mais sensível a erro de leitura
+// num único frame do que QR Code — um ângulo ruim ou desfoque troca um
+// dígito e devolve um número que não existe (ou existe, mas é de
+// outro item). Exigir a mesma leitura 2x seguidas filtra esse ruído
+// sem atraso perceptível (a câmera decodifica váras vezes por
+// segundo enquanto a etiqueta está enquadrada).
+const LEITURAS_NECESSARIAS = 2;
+
 export default function QrScanner({ onLeitura, ativo }) {
     const scannerRef = useRef(null);
+    const ultimaLeituraRef = useRef({ valor: null, contagem: 0 });
     const elementId = 'leitor-qrcode';
 
     useEffect(() => {
         if (!ativo) return undefined;
 
+        ultimaLeituraRef.current = { valor: null, contagem: 0 };
         let cancelado = false;
 
         import('html5-qrcode').then(({ Html5Qrcode, Html5QrcodeSupportedFormats }) => {
@@ -45,7 +57,20 @@ export default function QrScanner({ onLeitura, ativo }) {
                     // etiqueta fora da área lida na maioria dos ângulos.
                     { fps: 10 },
                     (textoDecodificado) => {
-                        onLeitura(textoDecodificado);
+                        const valor = textoDecodificado.trim();
+                        const ultima = ultimaLeituraRef.current;
+
+                        if (ultima.valor === valor) {
+                            ultima.contagem += 1;
+                        } else {
+                            ultimaLeituraRef.current = { valor, contagem: 1 };
+                            return;
+                        }
+
+                        if (ultima.contagem < LEITURAS_NECESSARIAS) return;
+
+                        ultimaLeituraRef.current = { valor: null, contagem: 0 };
+                        onLeitura(valor);
                     },
                     () => {
                         // erro de decodificação de um frame específico —
