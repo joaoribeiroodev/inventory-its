@@ -32,6 +32,9 @@
 // (não existe um identificador único pra eles) — rodar --confirmar
 // duas vezes VAI duplicá-los. Rode --confirmar uma única vez.
 
+// Diferente de src/server.js, scripts standalone não carregam o
+// .env automaticamente — precisa pedir explicitamente.
+require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { PrismaClient } = require('@prisma/client');

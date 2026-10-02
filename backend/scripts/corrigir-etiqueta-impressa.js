@@ -24,6 +24,9 @@
 // errado (etiquetaImpressa=false com numeroEtiqueta preenchido),
 // então uma segunda rodada não muda nada.
 
+// Diferente de src/server.js, scripts standalone não carregam o
+// .env automaticamente — precisa pedir explicitamente.
+require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
