@@ -45,11 +45,15 @@ function LeitorDeQrCode() {
                 }
                 router.push(`/itens/${resultado.id}`);
             } catch (err) {
-                setErro(
-                    err.status === 404
-                        ? `Nenhum item encontrado para o código "${codigo}"`
-                        : 'Erro ao buscar o item. Tente novamente.'
-                );
+                if (err.status === 404) {
+                    // Nada cadastrado com essa etiqueta/código — em vez de só
+                    // avisar que não achou, já manda pra tela de cadastro com
+                    // o código pré-preenchido, pra agilizar quem está
+                    // etiquetando um item novo.
+                    router.push(`/itens/novo?codigo=${encodeURIComponent(codigo.trim())}`);
+                    return;
+                }
+                setErro('Erro ao buscar o item. Tente novamente.');
                 setBuscando(false);
             }
         },

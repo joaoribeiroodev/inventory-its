@@ -10,9 +10,15 @@ import Botao from '../components/Botao';
 import Cartao from '../components/Cartao';
 import { colors, spacing, typography } from '../theme';
 
-export default function ItemFormScreen({ navigation }) {
+export default function ItemFormScreen({ navigation, route }) {
+    // Quando vem de um "bipar" que não achou nada cadastrado no cache
+    // local (ver ScannerScreen.js), o código lido chega aqui pra já
+    // deixar o número de etiqueta pré-preenchido.
+    const codigoPreenchido = route?.params?.codigo ?? '';
+
     const [descricao, setDescricao] = useState('');
     const [categoria, setCategoria] = useState('');
+    const [numeroEtiqueta, setNumeroEtiqueta] = useState(codigoPreenchido);
     const [setores, setSetores] = useState([]);
     const [setorId, setSetorId] = useState(null);
     const [situacaoInicial, setSituacaoInicial] = useState('bom');
@@ -33,6 +39,7 @@ export default function ItemFormScreen({ navigation }) {
             await api.criarItem({
                 descricao: descricao.trim(),
                 categoria: categoria.trim() || null,
+                numeroEtiqueta: numeroEtiqueta.trim() || null,
                 setorInicialId: setorId,
                 situacaoInicial,
             });
@@ -47,8 +54,19 @@ export default function ItemFormScreen({ navigation }) {
     return (
         <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.container}>
             <Cartao>
+                {codigoPreenchido ? (
+                    <Text style={styles.aviso}>
+                        Etiqueta "{codigoPreenchido}" não encontrada — cadastre o item correspondente
+                    </Text>
+                ) : null}
                 <Campo label="Descrição" placeholder="Ex: Notebook Dell Latitude" value={descricao} onChangeText={setDescricao} />
                 <Campo label="Categoria (opcional)" placeholder="Ex: Informática" value={categoria} onChangeText={setCategoria} />
+                <Campo
+                    label="Número da etiqueta de patrimônio (opcional)"
+                    placeholder="Só se já tiver etiqueta física colada"
+                    value={numeroEtiqueta}
+                    onChangeText={setNumeroEtiqueta}
+                />
 
                 <Text style={styles.label}>Setor inicial</Text>
                 <View style={styles.pickerBorda}>
@@ -76,6 +94,12 @@ export default function ItemFormScreen({ navigation }) {
 
 const styles = StyleSheet.create({
     container: { padding: spacing.lg },
+    aviso: {
+        ...typography.body,
+        color: colors.accent,
+        fontWeight: '600',
+        marginBottom: spacing.sm,
+    },
     label: { ...typography.label, marginBottom: spacing.xs },
     pickerBorda: {
         borderWidth: 1,

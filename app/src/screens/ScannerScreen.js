@@ -46,10 +46,23 @@ export default function ScannerScreen({ navigation }) {
         const candidatos = await buscarItensPorEtiqueta(codigo);
 
         if (candidatos.length === 0) {
+            // Nada no cache local com esse código — ou é um item realmente
+            // novo (etiqueta nunca cadastrada), ou foi cadastrado há pouco
+            // e ainda não sincronizou neste aparelho. Avisa e já oferece ir
+            // direto pro cadastro, com o código pré-preenchido.
             Alert.alert(
                 'Item não reconhecido',
-                `O código "${codigo}" não foi encontrado no cache local. Se o item foi cadastrado recentemente, sincronize na tela de Configurações.`,
-                [{ text: 'OK', onPress: () => setTravado(false) }]
+                `O código "${codigo}" não foi encontrado no cache local. Se foi cadastrado recentemente, sincronize na tela de Configurações. Ou cadastre um item novo com esse código.`,
+                [
+                    { text: 'Cancelar', style: 'cancel', onPress: () => setTravado(false) },
+                    {
+                        text: 'Cadastrar item novo',
+                        onPress: () => {
+                            navigation.navigate('ItemForm', { codigo });
+                            setTimeout(() => setTravado(false), 1500);
+                        },
+                    },
+                ]
             );
             return;
         }
