@@ -19,11 +19,18 @@ function GestaoDeLotes() {
     const [gerando, setGerando] = useState(false);
     const [carregando, setCarregando] = useState(true);
     const [loteSelecionadoId, setLoteSelecionadoId] = useState(null);
+    // Quais itens pendentes vão entrar no próximo lote. Começa com
+    // todos marcados (comportamento de antes, quando não dava pra
+    // escolher), mas agora pode desmarcar o que não quer imprimir
+    // agora.
+    const [selecionados, setSelecionados] = useState(new Set());
 
     async function carregar() {
         setCarregando(true);
         try {
-            setPendentes(await api.listarLotesPendentes());
+            const itens = await api.listarLotesPendentes();
+            setPendentes(itens);
+            setSelecionados(new Set(itens.map((item) => item.id)));
             setLotes(await api.listarLotes());
         } finally {
             setCarregando(false);
@@ -34,11 +41,28 @@ function GestaoDeLotes() {
         carregar();
     }, []);
 
+    function alternarSelecao(id) {
+        setSelecionados((atual) => {
+            const novo = new Set(atual);
+            if (novo.has(id)) novo.delete(id);
+            else novo.add(id);
+            return novo;
+        });
+    }
+
+    function alternarSelecaoTodos() {
+        setSelecionados((atual) =>
+            atual.size === pendentes.length ? new Set() : new Set(pendentes.map((item) => item.id))
+        );
+    }
+
     async function handleGerarLote() {
         setGerando(true);
         try {
-            await api.gerarLote({});
+            await api.gerarLote({ itemIds: [...selecionados] });
             carregar();
+        } catch (err) {
+            alert(err.message);
         } finally {
             setGerando(false);
         }
@@ -56,9 +80,9 @@ function GestaoDeLotes() {
             <div className="section">
                 <h2>Itens pendentes de etiqueta ({pendentes.length})</h2>
                 <p className="subtitle" style={{ maxWidth: 640, marginTop: 4 }}>
-                    Gera um lote com todos os itens abaixo em formato CSV pronto para importar
-                    como banco de dados no template do P-touch Editor e transferir para a
-                    etiquetadora PT-7600.
+                    Escolha quais itens entram no lote (todos vêm marcados por padrão) e gere um
+                    CSV pronto para importar como banco de dados no template do P-touch Editor e
+                    transferir para a etiquetadora PT-7600.
                 </p>
 
                 {carregando ? (
@@ -68,6 +92,14 @@ function GestaoDeLotes() {
                         <table>
                             <thead>
                                 <tr>
+                                    <th style={{ width: 32 }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={pendentes.length > 0 && selecionados.size === pendentes.length}
+                                            onChange={alternarSelecaoTodos}
+                                            aria-label="Selecionar todos"
+                                        />
+                                    </th>
                                     <th>Código</th>
                                     <th>Descrição</th>
                                     <th>Setor</th>
@@ -76,6 +108,14 @@ function GestaoDeLotes() {
                             <tbody>
                                 {pendentes.map((item) => (
                                     <tr key={item.id}>
+                                        <td>
+                                            <input
+                                                type="checkbox"
+                                                checked={selecionados.has(item.id)}
+                                                onChange={() => alternarSelecao(item.id)}
+                                                aria-label={`Selecionar item ${item.codigo ?? item.id}`}
+                                            />
+                                        </td>
                                         <td style={{ fontWeight: 600 }}>
                                             {item.codigo ?? <span className="subtitle">gerado ao imprimir</span>}
                                         </td>
@@ -85,7 +125,7 @@ function GestaoDeLotes() {
                                 ))}
                                 {pendentes.length === 0 && (
                                     <tr>
-                                        <td colSpan={3} className="table-empty">Nenhum item pendente</td>
+                                        <td colSpan={4} className="table-empty">Nenhum item pendente</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -96,10 +136,10 @@ function GestaoDeLotes() {
                 <button
                     className="btn btn-accent"
                     style={{ marginTop: 16 }}
-                    disabled={gerando || pendentes.length === 0}
+                    disabled={gerando || selecionados.size === 0}
                     onClick={handleGerarLote}
                 >
-                    {gerando ? 'Gerando...' : `Gerar lote com ${pendentes.length} item(ns)`}
+                    {gerando ? 'Gerando...' : `Gerar lote com ${selecionados.size} item(ns) selecionado(s)`}
                 </button>
             </div>
 
