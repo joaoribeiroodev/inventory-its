@@ -8,6 +8,7 @@ import { api } from '../services/api';
 import Campo from '../components/Campo';
 import Botao from '../components/Botao';
 import Cartao from '../components/Cartao';
+import SeletorBusca from '../components/SeletorBusca';
 import { colors, spacing, typography } from '../theme';
 
 export default function ItemFormScreen({ navigation, route }) {
@@ -40,7 +41,7 @@ export default function ItemFormScreen({ navigation, route }) {
                 descricao: descricao.trim(),
                 categoria: categoria.trim() || null,
                 numeroEtiqueta: numeroEtiqueta.trim() || null,
-                setorInicialId: setorId,
+                setorInicialId: setorId || null,
                 situacaoInicial,
             });
             navigation.goBack();
@@ -69,14 +70,13 @@ export default function ItemFormScreen({ navigation, route }) {
                 />
 
                 <Text style={styles.label}>Setor inicial</Text>
-                <View style={styles.pickerBorda}>
-                    <Picker selectedValue={setorId} onValueChange={setSetorId}>
-                        <Picker.Item label="Sem setor inicial" value={null} />
-                        {setores.map((s) => (
-                            <Picker.Item key={s.id} label={s.nome} value={s.id} />
-                        ))}
-                    </Picker>
-                </View>
+                <SeletorBusca
+                    opcoes={setores}
+                    valorId={setorId}
+                    onSelecionar={setSetorId}
+                    placeholder="Buscar setor por nome..."
+                    opcaoVazia="Sem setor inicial"
+                />
 
                 <Text style={styles.label}>Situação</Text>
                 <View style={styles.pickerBorda}>

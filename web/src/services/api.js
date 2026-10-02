@@ -114,6 +114,7 @@ export const api = {
     criarSetor: (dados) => requisitar('/setores', { method: 'POST', body: JSON.stringify(dados) }),
     atualizarSetor: (id, dados) =>
         requisitar(`/setores/${id}`, { method: 'PUT', body: JSON.stringify(dados) }),
+    excluirSetor: (id) => requisitar(`/setores/${id}`, { method: 'DELETE' }),
 
     // usuarios (admin)
     listarUsuarios: () => requisitar('/usuarios'),

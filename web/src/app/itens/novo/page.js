@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '../../../components/ProtectedRoute';
+import SeletorBusca from '../../../components/SeletorBusca';
 import { api } from '../../../services/api';
 
 export default function NovoItemPage() {
@@ -102,12 +103,13 @@ function FormularioNovoItem() {
 
                     <div className="form-group">
                         <label className="form-label">Setor inicial</label>
-                        <select className="form-control" value={setorId} onChange={(e) => setSetorId(e.target.value)}>
-                            <option value="">Sem setor inicial</option>
-                            {setores.map((s) => (
-                                <option key={s.id} value={s.id}>{s.nome}</option>
-                            ))}
-                        </select>
+                        <SeletorBusca
+                            opcoes={setores}
+                            valorId={setorId}
+                            onSelecionar={setSetorId}
+                            placeholder="Buscar setor por nome..."
+                            opcaoVazia="Sem setor inicial"
+                        />
                     </div>
 
                     <div className="form-group">

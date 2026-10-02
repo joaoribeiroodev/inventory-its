@@ -21,8 +21,11 @@ function ListaDeSetores() {
 
     const [modalCriar, setModalCriar] = useState(false);
     const [modalEditar, setModalEditar] = useState(null); // setor sendo editado, ou null
+    const [excluindoId, setExcluindoId] = useState(null);
 
     const podeEditar = usuario?.papel === 'admin' || usuario?.papel === 'cadastrador';
+    // Mesma regra do resto do sistema: só admin exclui.
+    const podeExcluir = usuario?.papel === 'admin';
 
     async function carregar() {
         setCarregando(true);
@@ -36,6 +39,23 @@ function ListaDeSetores() {
     useEffect(() => {
         carregar();
     }, []);
+
+    async function handleExcluir(setor) {
+        const confirmou = window.confirm(
+            `Excluir o setor "${setor.nome}"? Só é possível se não houver nenhum item alocado nele no momento. Essa ação não pode ser desfeita.`
+        );
+        if (!confirmou) return;
+
+        setExcluindoId(setor.id);
+        try {
+            await api.excluirSetor(setor.id);
+            await carregar();
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setExcluindoId(null);
+        }
+    }
 
     return (
         <div>
@@ -63,7 +83,7 @@ function ListaDeSetores() {
                                 <th>Nome</th>
                                 <th>Descrição</th>
                                 <th>Status</th>
-                                {podeEditar && <th></th>}
+                                {(podeEditar || podeExcluir) && <th></th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -76,18 +96,31 @@ function ListaDeSetores() {
                                             {s.ativo ? 'Ativo' : 'Inativo'}
                                         </span>
                                     </td>
-                                    {podeEditar && (
+                                    {(podeEditar || podeExcluir) && (
                                         <td>
-                                            <button className="btn btn-secondary btn-sm" onClick={() => setModalEditar(s)}>
-                                                Editar
-                                            </button>
+                                            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                                                {podeEditar && (
+                                                    <button className="btn btn-secondary btn-sm" onClick={() => setModalEditar(s)}>
+                                                        Editar
+                                                    </button>
+                                                )}
+                                                {podeExcluir && (
+                                                    <button
+                                                        className="btn btn-danger btn-sm"
+                                                        onClick={() => handleExcluir(s)}
+                                                        disabled={excluindoId === s.id}
+                                                    >
+                                                        {excluindoId === s.id ? 'Excluindo...' : 'Excluir'}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     )}
                                 </tr>
                             ))}
                             {setores.length === 0 && (
                                 <tr>
-                                    <td colSpan={podeEditar ? 4 : 3} className="table-empty">Nenhum setor cadastrado</td>
+                                    <td colSpan={podeEditar || podeExcluir ? 4 : 3} className="table-empty">Nenhum setor cadastrado</td>
                                 </tr>
                             )}
                         </tbody>
