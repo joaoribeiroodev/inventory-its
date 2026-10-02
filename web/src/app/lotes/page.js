@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Modal from '../../components/Modal';
 import { api } from '../../services/api';
@@ -24,6 +24,10 @@ function GestaoDeLotes() {
     // escolher), mas agora pode desmarcar o que não quer imprimir
     // agora.
     const [selecionados, setSelecionados] = useState(new Set());
+    // Busca local: a lista de pendentes já vem inteira do backend (não
+    // é paginada), então filtrar aqui no navegador é instantâneo e
+    // não exige mais uma chamada à API a cada letra digitada.
+    const [busca, setBusca] = useState('');
 
     async function carregar() {
         setCarregando(true);
@@ -41,6 +45,25 @@ function GestaoDeLotes() {
         carregar();
     }, []);
 
+    function normalizar(texto) {
+        return (texto ?? '')
+            .normalize('NFD')
+            .replace(/[̀-ͯ]/g, '') // remove acentos, pra "notebook" achar "Notebook" e "àrea" achar "área"
+            .toLowerCase();
+    }
+
+    // Filtra por código, número de etiqueta física, descrição ou
+    // setor — cobre os mesmos campos que a busca da aba Itens.
+    const pendentesFiltrados = useMemo(() => {
+        const alvo = normalizar(busca.trim());
+        if (!alvo) return pendentes;
+        return pendentes.filter((item) =>
+            [item.codigo, item.numeroEtiqueta, item.descricao, item.setorAtual?.nome].some((campo) =>
+                normalizar(campo).includes(alvo)
+            )
+        );
+    }, [pendentes, busca]);
+
     function alternarSelecao(id) {
         setSelecionados((atual) => {
             const novo = new Set(atual);
@@ -50,10 +73,22 @@ function GestaoDeLotes() {
         });
     }
 
+    // Marca/desmarca só os itens visíveis no momento (respeitando a
+    // busca) — assim dá pra filtrar por um setor, selecionar só
+    // aqueles, limpar a busca e selecionar outro grupo, sem perder a
+    // seleção anterior.
     function alternarSelecaoTodos() {
-        setSelecionados((atual) =>
-            atual.size === pendentes.length ? new Set() : new Set(pendentes.map((item) => item.id))
-        );
+        const todosVisiveisMarcados =
+            pendentesFiltrados.length > 0 && pendentesFiltrados.every((item) => selecionados.has(item.id));
+
+        setSelecionados((atual) => {
+            const novo = new Set(atual);
+            for (const item of pendentesFiltrados) {
+                if (todosVisiveisMarcados) novo.delete(item.id);
+                else novo.add(item.id);
+            }
+            return novo;
+        });
     }
 
     async function handleGerarLote() {
@@ -85,6 +120,15 @@ function GestaoDeLotes() {
                     transferir para a etiquetadora PT-7600.
                 </p>
 
+                <div className="form-group" style={{ maxWidth: 420, marginTop: 12, marginBottom: 0 }}>
+                    <input
+                        className="form-control"
+                        placeholder="Buscar por código, etiqueta, descrição ou setor..."
+                        value={busca}
+                        onChange={(e) => setBusca(e.target.value)}
+                    />
+                </div>
+
                 {carregando ? (
                     <div className="loading-shell">Carregando...</div>
                 ) : (
@@ -95,9 +139,12 @@ function GestaoDeLotes() {
                                     <th style={{ width: 32 }}>
                                         <input
                                             type="checkbox"
-                                            checked={pendentes.length > 0 && selecionados.size === pendentes.length}
+                                            checked={
+                                                pendentesFiltrados.length > 0 &&
+                                                pendentesFiltrados.every((item) => selecionados.has(item.id))
+                                            }
                                             onChange={alternarSelecaoTodos}
-                                            aria-label="Selecionar todos"
+                                            aria-label="Selecionar todos os itens visíveis"
                                         />
                                     </th>
                                     <th>Código</th>
@@ -106,7 +153,7 @@ function GestaoDeLotes() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {pendentes.map((item) => (
+                                {pendentesFiltrados.map((item) => (
                                     <tr key={item.id}>
                                         <td>
                                             <input
@@ -123,9 +170,11 @@ function GestaoDeLotes() {
                                         <td>{item.setorAtual?.nome ?? '—'}</td>
                                     </tr>
                                 ))}
-                                {pendentes.length === 0 && (
+                                {pendentesFiltrados.length === 0 && (
                                     <tr>
-                                        <td colSpan={4} className="table-empty">Nenhum item pendente</td>
+                                        <td colSpan={4} className="table-empty">
+                                            {busca.trim() ? 'Nenhum item encontrado para essa busca' : 'Nenhum item pendente'}
+                                        </td>
                                     </tr>
                                 )}
                             </tbody>
