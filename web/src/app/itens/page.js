@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../contexts/AuthContext';
@@ -113,26 +113,6 @@ function ListaDeItens() {
             setExportando(false);
         }
     }
-
-    // A lista já vem ordenada por setor do backend (ver listar() em
-    // itens.controller.js) — aqui só agrupa pra exibição, com um
-    // cabeçalho por setor em vez de repetir o nome em toda linha.
-    // Itens sem setor caem no grupo "Sem setor", sempre por último.
-    const grupos = useMemo(() => {
-        const porNome = new Map();
-        for (const item of itens) {
-            const nome = item.setorAtual?.nome ?? null;
-            if (!porNome.has(nome)) porNome.set(nome, []);
-            porNome.get(nome).push(item);
-        }
-        const entradas = [...porNome.entries()];
-        entradas.sort(([a], [b]) => {
-            if (a === null) return 1;
-            if (b === null) return -1;
-            return 0; // já vem ordenado do backend, só precisa empurrar "null" pro fim
-        });
-        return entradas.map(([nome, itensDoGrupo]) => ({ nome: nome ?? 'Sem setor', itensDoGrupo }));
-    }, [itens]);
 
     function alternarSelecao(id) {
         setSelecionados((atual) => {
@@ -258,53 +238,46 @@ function ListaDeItens() {
                                 )}
                                 <th>Código</th>
                                 <th>Descrição</th>
+                                <th>Setor</th>
                                 <th>Situação</th>
                                 <th>Etiqueta</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {grupos.map((grupo) => (
-                                <React.Fragment key={grupo.nome}>
-                                    <tr>
-                                        <td colSpan={podeExcluir ? 5 : 4} className="table-group-header">
-                                            {grupo.nome} <span className="subtitle">({grupo.itensDoGrupo.length})</span>
+                            {itens.map((item) => (
+                                <tr key={item.id}>
+                                    {podeExcluir && (
+                                        <td>
+                                            <input
+                                                type="checkbox"
+                                                checked={selecionados.has(item.id)}
+                                                onChange={() => alternarSelecao(item.id)}
+                                                aria-label={`Selecionar item ${item.codigo ?? item.id}`}
+                                            />
                                         </td>
-                                    </tr>
-                                    {grupo.itensDoGrupo.map((item) => (
-                                        <tr key={item.id}>
-                                            {podeExcluir && (
-                                                <td>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selecionados.has(item.id)}
-                                                        onChange={() => alternarSelecao(item.id)}
-                                                        aria-label={`Selecionar item ${item.codigo ?? item.id}`}
-                                                    />
-                                                </td>
-                                            )}
-                                            <td>
-                                                <Link href={`/itens/${item.id}`} style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>
-                                                    {item.codigo ?? 'Sem código ainda'}
-                                                </Link>
-                                            </td>
-                                            <td>{item.descricao}</td>
-                                            <td>
-                                                <span className={`badge badge-${item.situacaoAtual}`}>
-                                                    {ROTULOS_SITUACAO[item.situacaoAtual] ?? item.situacaoAtual}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span className={`badge ${item.etiquetaImpressa ? 'badge-bom' : 'badge-neutro'}`}>
-                                                    {item.etiquetaImpressa ? 'Impressa' : 'Pendente'}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </React.Fragment>
+                                    )}
+                                    <td>
+                                        <Link href={`/itens/${item.id}`} style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>
+                                            {item.codigo ?? 'Sem código ainda'}
+                                        </Link>
+                                    </td>
+                                    <td>{item.descricao}</td>
+                                    <td>{item.setorAtual?.nome ?? '—'}</td>
+                                    <td>
+                                        <span className={`badge badge-${item.situacaoAtual}`}>
+                                            {ROTULOS_SITUACAO[item.situacaoAtual] ?? item.situacaoAtual}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span className={`badge ${item.etiquetaImpressa ? 'badge-bom' : 'badge-neutro'}`}>
+                                            {item.etiquetaImpressa ? 'Impressa' : 'Pendente'}
+                                        </span>
+                                    </td>
+                                </tr>
                             ))}
                             {itens.length === 0 && (
                                 <tr>
-                                    <td colSpan={podeExcluir ? 5 : 4} className="table-empty">Nenhum item encontrado</td>
+                                    <td colSpan={podeExcluir ? 6 : 5} className="table-empty">Nenhum item encontrado</td>
                                 </tr>
                             )}
                         </tbody>

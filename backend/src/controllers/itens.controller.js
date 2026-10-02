@@ -41,15 +41,11 @@ function construirFiltro({ setorId, situacao, busca }) {
 }
 
 // GET /itens — listagem completa (painel web), com filtros simples.
-// Ordenada por setor (e depois descrição) por padrão, pra lista já
-// sair organizada por setor sem precisar de nenhum filtro — itens
-// sem setor (setorAtualId null) caem no final (NULLS LAST é o padrão
-// do Postgres pra ASC).
 const listar = asyncHandler(async (req, res) => {
     const itens = await prisma.item.findMany({
         where: construirFiltro(req.query),
         include: { setorAtual: true },
-        orderBy: [{ setorAtual: { nome: 'asc' } }, { descricao: 'asc' }],
+        orderBy: { criadoEm: 'desc' },
     });
 
     res.json(itens);
@@ -61,7 +57,7 @@ const exportarXlsx = asyncHandler(async (req, res) => {
     const itens = await prisma.item.findMany({
         where: construirFiltro(req.query),
         include: { setorAtual: true },
-        orderBy: [{ setorAtual: { nome: 'asc' } }, { descricao: 'asc' }],
+        orderBy: { criadoEm: 'desc' },
     });
 
     const workbook = new ExcelJS.Workbook();
@@ -181,7 +177,16 @@ const sync = asyncHandler(async (req, res) => {
 // a lista pra quem escaneou escolher qual é o item físico certo, em
 // vez de abrir um item errado.
 const buscarPorCodigo = asyncHandler(async (req, res) => {
-    const codigo = req.params.codigo;
+    // Trim defensivo aqui também (não só no front): um leitor de
+    // código de barras USB, ou a câmera decodificando uma etiqueta
+    // mal impressa, às vezes manda espaço/quebra de linha sobrando
+    // no texto — sem isso, a comparação exata com "codigo" falha
+    // silenciosamente e cai pro 404, mesmo o item existindo.
+    const codigo = String(req.params.codigo ?? '').trim();
+
+    if (!codigo) {
+        return res.status(404).json({ erro: 'Item não encontrado' });
+    }
 
     const direto = await prisma.item.findUnique({
         where: { codigo },
@@ -191,10 +196,27 @@ const buscarPorCodigo = asyncHandler(async (req, res) => {
         return res.json(direto);
     }
 
-    const candidatos = await prisma.item.findMany({
+    let candidatos = await prisma.item.findMany({
         where: { numeroEtiqueta: codigo },
         include: { setorAtual: true },
     });
+
+    // Fallback extra: etiqueta de patrimônio lida com zero(s) à
+    // esquerda a mais ou a menos do que está gravado no banco (ex.
+    // câmera/leitor devolve "09637" e o cadastro tem "9637", ou
+    // vice-versa). Só entra aqui se nada bateu nas duas tentativas
+    // exatas acima, e só pra código puramente numérico.
+    if (candidatos.length === 0 && /^\d+$/.test(codigo)) {
+        const semZerosEsquerda = codigo.replace(/^0+(?=\d)/, '');
+        if (semZerosEsquerda !== codigo) {
+            candidatos = await prisma.item.findMany({
+                where: {
+                    OR: [{ codigo: semZerosEsquerda }, { numeroEtiqueta: semZerosEsquerda }],
+                },
+                include: { setorAtual: true },
+            });
+        }
+    }
 
     if (candidatos.length === 0) {
         return res.status(404).json({ erro: 'Item não encontrado' });
