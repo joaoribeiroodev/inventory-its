@@ -70,14 +70,10 @@ export const api = {
 
     buscarItensParaSync: () => requisitar('/itens/sync'),
     buscarSetores: () => requisitar('/setores'),
-    buscarItemPorCodigo: (codigo) => requisitar(`/itens/codigo/${codigo}`),
-    buscarItemPorId: (id) => requisitar(`/itens/${id}`),
     buscarHistoricoItem: (id) => requisitar(`/itens/${id}/eventos`),
     criarItem: (dados) => requisitar('/itens', { method: 'POST', body: JSON.stringify(dados) }),
     atualizarItem: (id, dados) =>
         requisitar(`/itens/${id}`, { method: 'PUT', body: JSON.stringify(dados) }),
-
-    criarSetor: (dados) => requisitar('/setores', { method: 'POST', body: JSON.stringify(dados) }),
 
     listarLotesPendentes: () => requisitar('/lotes/pendentes'),
     gerarLote: (dados) => requisitar('/lotes', { method: 'POST', body: JSON.stringify(dados) }),

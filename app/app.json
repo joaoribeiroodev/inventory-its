@@ -22,8 +22,7 @@
       "package": "br.com.internacionaltravessias.inventoryits",
       "permissions": [
         "CAMERA",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
@@ -36,8 +35,7 @@
         {
           "cameraPermission": "O app precisa da câmera para ler o QR Code das etiquetas."
         }
-      ],
-      "expo-font"
+      ]
     ]
   }
 }
