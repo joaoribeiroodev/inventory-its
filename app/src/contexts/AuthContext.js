@@ -21,10 +21,10 @@ export function AuthProvider({ children }) {
         })();
     }, []);
 
-    async function login(email, senha) {
+    async function login(identificador, senha) {
         // Login em si EXIGE conexão — não há como validar credenciais
         // offline sem a senha estar salva em claro no aparelho.
-        const resposta = await api.login(email, senha);
+        const resposta = await api.login(identificador, senha);
         await salvarSessao(resposta);
         setUsuario({ nome: resposta.usuario.nome, papel: resposta.usuario.papel });
     }

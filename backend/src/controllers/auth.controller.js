@@ -3,14 +3,21 @@ const prisma = require('../lib/prisma');
 const { gerarToken } = require('../utils/jwt');
 const { asyncHandler } = require('../utils/asyncHandler');
 
+// Login aceita tanto o nome de usuário quanto o email no mesmo campo
+// ("identificador") — não precisa a pessoa lembrar qual dos dois
+// cadastrou. "email" continua aceito isolado só por compatibilidade
+// com uma sessão de app/painel antiga que ainda não atualizou.
 const login = asyncHandler(async (req, res) => {
-    const { email, senha } = req.body;
+    const identificador = String(req.body.identificador ?? req.body.email ?? '').trim();
+    const { senha } = req.body;
 
-    if (!email || !senha) {
-        return res.status(400).json({ erro: 'Informe email e senha' });
+    if (!identificador || !senha) {
+        return res.status(400).json({ erro: 'Informe usuário/email e senha' });
     }
 
-    const usuario = await prisma.usuario.findUnique({ where: { email } });
+    const usuario = await prisma.usuario.findFirst({
+        where: { OR: [{ email: identificador }, { usuario: identificador }] },
+    });
 
     if (!usuario || !usuario.ativo) {
         return res.status(401).json({ erro: 'Credenciais inválidas' });
@@ -28,6 +35,7 @@ const login = asyncHandler(async (req, res) => {
         usuario: {
             id: usuario.id,
             nome: usuario.nome,
+            usuario: usuario.usuario,
             email: usuario.email,
             papel: usuario.papel,
         },

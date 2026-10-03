@@ -31,6 +31,12 @@ enum Situacao {
 model Usuario {
   id           BigInt   @id @default(autoincrement())
   nome         String   @db.VarChar(150)
+  // Nome de usuário pra login, alternativo ao email (ver
+  // auth.controller.js: login aceita um OU o outro). Nullable só pra
+  // não travar a migração de contas já existentes sem esse campo —
+  // scripts/preencher-usuario-login.js faz o backfill a partir do
+  // email; toda conta nova é obrigada a ter (ver usuarios.controller.js).
+  usuario      String?  @unique @db.VarChar(60)
   email        String   @unique @db.VarChar(190)
   senhaHash    String   @map("senha_hash") @db.VarChar(255)
   papel        Papel    @default(operador)

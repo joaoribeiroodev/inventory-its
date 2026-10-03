@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export default function LoginPage() {
     const { login } = useAuth();
-    const [email, setEmail] = useState('');
+    const [identificador, setIdentificador] = useState('');
     const [senha, setSenha] = useState('');
     const [erro, setErro] = useState(null);
     const [carregando, setCarregando] = useState(false);
@@ -15,10 +15,10 @@ export default function LoginPage() {
         setErro(null);
         setCarregando(true);
         try {
-            await login(email, senha);
+            await login(identificador, senha);
             window.location.href = '/itens';
         } catch (err) {
-            setErro(err.status === 401 ? 'Email ou senha incorretos' : 'Não foi possível conectar à API');
+            setErro(err.status === 401 ? 'Usuário/email ou senha incorretos' : 'Não foi possível conectar à API');
         } finally {
             setCarregando(false);
         }
@@ -35,14 +35,13 @@ export default function LoginPage() {
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label className="form-label" htmlFor="email">Email</label>
+                        <label className="form-label" htmlFor="identificador">Usuário ou email</label>
                         <input
-                            id="email"
+                            id="identificador"
                             className="form-control"
-                            type="email"
-                            placeholder="seu.nome@empresa.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="seu.usuario ou seu.nome@empresa.com"
+                            value={identificador}
+                            onChange={(e) => setIdentificador(e.target.value)}
                             required
                         />
                     </div>

@@ -7,7 +7,7 @@ import { colors, spacing, typography } from '../theme';
 
 export default function LoginScreen() {
     const { login } = useAuth();
-    const [email, setEmail] = useState('');
+    const [identificador, setIdentificador] = useState('');
     const [senha, setSenha] = useState('');
     const [erro, setErro] = useState(null);
     const [carregando, setCarregando] = useState(false);
@@ -16,11 +16,11 @@ export default function LoginScreen() {
         setErro(null);
         setCarregando(true);
         try {
-            await login(email, senha);
+            await login(identificador, senha);
         } catch (err) {
             setErro(
                 err.status === 401
-                    ? 'Email ou senha incorretos'
+                    ? 'Usuário/email ou senha incorretos'
                     : 'Não foi possível conectar ao servidor. Verifique o endereço nas Configurações.'
             );
         } finally {
@@ -40,12 +40,11 @@ export default function LoginScreen() {
 
                 <View style={styles.form}>
                     <Campo
-                        label="Email"
-                        placeholder="seu.nome@empresa.com"
+                        label="Usuário ou email"
+                        placeholder="seu.usuario ou seu.nome@empresa.com"
                         autoCapitalize="none"
-                        keyboardType="email-address"
-                        value={email}
-                        onChangeText={setEmail}
+                        value={identificador}
+                        onChangeText={setIdentificador}
                     />
                     <Campo
                         label="Senha"

@@ -61,6 +61,7 @@ function ListaDeUsuarios() {
                         <thead>
                             <tr>
                                 <th>Nome</th>
+                                <th>Usuário</th>
                                 <th>Email</th>
                                 <th>Papel</th>
                                 <th>Status</th>
@@ -71,6 +72,7 @@ function ListaDeUsuarios() {
                             {usuarios.map((u) => (
                                 <tr key={u.id}>
                                     <td style={{ fontWeight: 600 }}>{u.nome}</td>
+                                    <td>{u.usuario ?? <span className="subtitle">não definido</span>}</td>
                                     <td>{u.email}</td>
                                     <td><span className="badge badge-neutro">{u.papel}</span></td>
                                     <td>
@@ -95,7 +97,7 @@ function ListaDeUsuarios() {
                             ))}
                             {usuarios.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="table-empty">Nenhum usuário cadastrado</td>
+                                    <td colSpan={6} className="table-empty">Nenhum usuário cadastrado</td>
                                 </tr>
                             )}
                         </tbody>
@@ -124,6 +126,7 @@ function ListaDeUsuarios() {
 
 function ModalNovoUsuario({ aberto, onFechar, onCriado }) {
     const [nome, setNome] = useState('');
+    const [usuario, setUsuario] = useState('');
     const [email, setEmail] = useState('');
     const [senha, setSenha] = useState('');
     const [papel, setPapel] = useState('operador');
@@ -133,7 +136,7 @@ function ModalNovoUsuario({ aberto, onFechar, onCriado }) {
     // Limpa o formulário sempre que o modal é reaberto
     useEffect(() => {
         if (aberto) {
-            setNome(''); setEmail(''); setSenha(''); setPapel('operador'); setErro(null);
+            setNome(''); setUsuario(''); setEmail(''); setSenha(''); setPapel('operador'); setErro(null);
         }
     }, [aberto]);
 
@@ -142,7 +145,7 @@ function ModalNovoUsuario({ aberto, onFechar, onCriado }) {
         setErro(null);
         setSalvando(true);
         try {
-            await api.criarUsuario({ nome, email, senha, papel });
+            await api.criarUsuario({ nome, usuario, email, senha, papel });
             onCriado();
         } catch (err) {
             setErro(err.message);
@@ -157,6 +160,17 @@ function ModalNovoUsuario({ aberto, onFechar, onCriado }) {
                 <div className="form-group">
                     <label className="form-label">Nome</label>
                     <input className="form-control" value={nome} onChange={(e) => setNome(e.target.value)} required />
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Usuário (login)</label>
+                    <input
+                        className="form-control"
+                        placeholder="Ex: joao.ribeiro"
+                        value={usuario}
+                        onChange={(e) => setUsuario(e.target.value)}
+                        required
+                    />
+                    <p className="form-hint">Usado pra entrar no painel/app, como alternativa ao email.</p>
                 </div>
                 <div className="form-group">
                     <label className="form-label">Email</label>
@@ -190,6 +204,7 @@ function ModalNovoUsuario({ aberto, onFechar, onCriado }) {
 
 function ModalEditarUsuario({ usuario, onFechar, onSalvo }) {
     const [nome, setNome] = useState('');
+    const [nomeDeUsuario, setNomeDeUsuario] = useState('');
     const [papel, setPapel] = useState('operador');
     const [erro, setErro] = useState(null);
     const [salvando, setSalvando] = useState(false);
@@ -197,6 +212,7 @@ function ModalEditarUsuario({ usuario, onFechar, onSalvo }) {
     useEffect(() => {
         if (usuario) {
             setNome(usuario.nome);
+            setNomeDeUsuario(usuario.usuario ?? '');
             setPapel(usuario.papel);
             setErro(null);
         }
@@ -207,7 +223,7 @@ function ModalEditarUsuario({ usuario, onFechar, onSalvo }) {
         setErro(null);
         setSalvando(true);
         try {
-            await api.atualizarUsuario(usuario.id, { nome, papel });
+            await api.atualizarUsuario(usuario.id, { nome, usuario: nomeDeUsuario, papel });
             onSalvo();
         } catch (err) {
             setErro(err.message);
@@ -222,6 +238,16 @@ function ModalEditarUsuario({ usuario, onFechar, onSalvo }) {
                 <div className="form-group">
                     <label className="form-label">Nome</label>
                     <input className="form-control" value={nome} onChange={(e) => setNome(e.target.value)} required />
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Usuário (login)</label>
+                    <input
+                        className="form-control"
+                        placeholder="Ex: joao.ribeiro"
+                        value={nomeDeUsuario}
+                        onChange={(e) => setNomeDeUsuario(e.target.value)}
+                        required
+                    />
                 </div>
                 <div className="form-group">
                     <label className="form-label">Email</label>

@@ -62,8 +62,11 @@ export async function servidorEstaAlcancavel(timeoutMs = 4000) {
 }
 
 export const api = {
-    login: (email, senha) =>
-        requisitar('/auth/login', { method: 'POST', body: JSON.stringify({ email, senha }) }),
+    // "identificador" pode ser o nome de usuário OU o email (ver
+    // auth.controller.js no backend) — a pessoa não precisa lembrar
+    // qual dos dois cadastrou.
+    login: (identificador, senha) =>
+        requisitar('/auth/login', { method: 'POST', body: JSON.stringify({ identificador, senha }) }),
 
     buscarItensParaSync: () => requisitar('/itens/sync'),
     buscarSetores: () => requisitar('/setores'),
