@@ -1,38 +1,71 @@
 name: inventory-its
 
 # =========================================================
-# inventory-its — orquestração LOCAL opcional via Docker
+# inventory-its — orquestração self-hosted via Docker
 #
-# Não é mais o caminho de produção: em produção o backend roda
-# no Render, o painel web na Vercel e o banco (PostgreSQL) no
-# Neon — nenhum dos três precisa de Docker (ver README no chat
-# / instruções que o Claude te passou).
+# Esse é o caminho de produção pra rodar DENTRO da rede da
+# empresa, sem nada externo: Postgres, backend e painel web
+# inteiros em containers neste servidor. Substitui Neon
+# (banco) + Render (backend) + onde quer que o painel estivesse
+# hospedado antes — ver DEPLOY.md pra o passo a passo completo
+# (instalação do Docker, migração dos dados antigos, backup).
 #
-# Esse arquivo continua útil só se você quiser rodar backend e
-# web localmente em containers (em vez de "npm run dev" direto),
-# sempre conversando com o banco do Neon via DATABASE_URL no
-# .env. Se preferir não usar Docker de jeito nenhum, ignore este
-# arquivo e rode os dois com npm normalmente.
+# Os três serviços ficam expostos em todas as interfaces de
+# rede da máquina (não só localhost), de propósito: é assim que
+# os outros PCs/celulares da rede interna conseguem acessar pelo
+# IP do servidor. Só funciona pra quem está na mesma rede (não
+# expõe nada pra internet) — o firewall da máquina ainda precisa
+# liberar as portas pra rede local (ver DEPLOY.md).
 #
 # Uso:
-#   1. cp .env.example .env    (preencha DATABASE_URL com a do Neon)
+#   1. cp .env.example .env    (preencha com os valores do seu servidor)
 #   2. docker compose up -d --build
+#   3. docker compose exec backend npx prisma db push   (cria as tabelas)
+#   4. docker compose exec backend npm run seed          (cria o 1º admin)
 # =========================================================
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: inventory-its-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      # Dado de verdade do negócio (inventário de patrimônio) — fica
+      # num volume nomeado do Docker, que sobrevive a
+      # "docker compose down" e a rebuilds das imagens. Só é apagado
+      # com "docker compose down -v" (de propósito — ver DEPLOY.md
+      # sobre backup antes de qualquer manutenção que use -v).
+      - inventory-its-pgdata:/var/lib/postgresql/data
+    # Não expõe porta pra fora do Docker — só o backend (na mesma
+    # rede interna do compose) precisa falar com o Postgres.
+    networks:
+      - inventory-its-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./backend
     container_name: inventory-its-api
     restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: ${API_PORT}
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
     ports:
-      - "127.0.0.1:${API_PORT}:${API_PORT}"
+      - "${API_PORT}:${API_PORT}"
     networks:
       - inventory-its-net
 
@@ -41,7 +74,9 @@ services:
       context: ./web
       # NEXT_PUBLIC_API_URL precisa ser passado como build arg:
       # o Next.js "queima" variáveis NEXT_PUBLIC_* no bundle JS
-      # durante o build, não em runtime.
+      # durante o build, não em runtime. Por isso tem que ser o
+      # endereço que os NAVEGADORES da rede vão usar (o IP do
+      # servidor), não o nome interno do container.
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     container_name: inventory-its-web
@@ -52,10 +87,13 @@ services:
       NODE_ENV: production
       PORT: ${WEB_PORT}
     ports:
-      - "127.0.0.1:${WEB_PORT}:${WEB_PORT}"
+      - "${WEB_PORT}:${WEB_PORT}"
     networks:
       - inventory-its-net
 
 networks:
   inventory-its-net:
     driver: bridge
+
+volumes:
+  inventory-its-pgdata:

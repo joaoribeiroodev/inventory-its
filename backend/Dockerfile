@@ -14,15 +14,25 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
 
 WORKDIR /app
 
-# Instala dependências primeiro (aproveita cache do Docker)
+# Instala TODAS as dependências (incluindo devDependencies) nesse
+# estágio — "prisma" (o CLI usado no "npx prisma generate" abaixo) é
+# devDependency, e instalar só as de produção aqui faria o npx baixar
+# o pacote de novo na hora, sem cache e dependendo da rede nesse
+# passo específico do build (gerou erro 403 de registry bloqueado
+# testando isso num ambiente com rede restrita — evitável instalando
+# direto).
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm install
 
 # Copia o restante do código
 COPY . .
 
 # Gera o Prisma Client (precisa do schema.prisma já copiado)
 RUN npx prisma generate
+
+# Remove as devDependencies agora que o Prisma Client já foi gerado —
+# a imagem final roda só com o necessário em produção.
+RUN npm prune --omit=dev
 
 EXPOSE 3001
 
