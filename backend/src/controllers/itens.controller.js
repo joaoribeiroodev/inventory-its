@@ -3,6 +3,7 @@ const ExcelJS = require('exceljs');
 const prisma = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { proximoNumeroDisponivel } = require('../utils/codigoGerado');
+const { registrarEvento } = require('../utils/logger');
 
 const ROTULOS_SITUACAO = {
     bom: 'Bom',
@@ -324,6 +325,18 @@ const criar = asyncHandler(async (req, res) => {
         return novoItem;
     });
 
+    registrarEvento({
+        nivel: item.patrimonioDuplicado ? 'aviso' : 'sucesso',
+        origem: req.origemCliente,
+        acao: 'criar_item',
+        mensagem: item.patrimonioDuplicado
+            ? `${req.usuario.nome} cadastrou "${item.descricao}" com etiqueta "${item.codigo}" já usada em outro item (patrimônio duplicado)`
+            : `${req.usuario.nome} cadastrou o item "${item.descricao}"`,
+        usuarioId: req.usuario.id,
+        usuarioNome: req.usuario.nome,
+        rota: 'POST /itens',
+    });
+
     res.status(201).json(item);
 });
 
@@ -341,6 +354,16 @@ const atualizar = asyncHandler(async (req, res) => {
             ...(categoria !== undefined ? { categoria } : {}),
         },
         include: { setorAtual: true },
+    });
+
+    registrarEvento({
+        nivel: 'sucesso',
+        origem: req.origemCliente,
+        acao: 'atualizar_item',
+        mensagem: `${req.usuario.nome} editou o cadastro do item "${item.descricao}"`,
+        usuarioId: req.usuario.id,
+        usuarioNome: req.usuario.nome,
+        rota: `PUT /itens/${req.params.id}`,
     });
 
     res.json(item);
@@ -388,6 +411,18 @@ const registrarMovimentacao = asyncHandler(async (req, res) => {
         include: { setorAtual: true },
     });
 
+    registrarEvento({
+        nivel: 'sucesso',
+        origem: req.origemCliente,
+        acao: 'movimentar_item',
+        mensagem: `${req.usuario.nome} registrou movimentação do item "${item.descricao}"${
+            atualizado.setorAtual ? ` → setor "${atualizado.setorAtual.nome}"` : ''
+        }${situacaoNova ? ` (situação: ${situacaoNova})` : ''}`,
+        usuarioId: req.usuario.id,
+        usuarioNome: req.usuario.nome,
+        rota: `POST /itens/${req.params.id}/movimentar`,
+    });
+
     res.json(atualizado);
 });
 
@@ -405,6 +440,16 @@ const excluir = asyncHandler(async (req, res) => {
 
     await prisma.item.delete({ where: { id: itemId } });
 
+    registrarEvento({
+        nivel: 'sucesso',
+        origem: req.origemCliente,
+        acao: 'excluir_item',
+        mensagem: `${req.usuario.nome} excluiu o item "${item.descricao}"`,
+        usuarioId: req.usuario.id,
+        usuarioNome: req.usuario.nome,
+        rota: `DELETE /itens/${req.params.id}`,
+    });
+
     res.status(204).end();
 });
 
@@ -421,6 +466,16 @@ const excluirVarios = asyncHandler(async (req, res) => {
 
     const ids = itemIds.map((id) => BigInt(id));
     const resultado = await prisma.item.deleteMany({ where: { id: { in: ids } } });
+
+    registrarEvento({
+        nivel: 'sucesso',
+        origem: req.origemCliente,
+        acao: 'excluir_itens_lote',
+        mensagem: `${req.usuario.nome} excluiu ${resultado.count} item(ns) em lote`,
+        usuarioId: req.usuario.id,
+        usuarioNome: req.usuario.nome,
+        rota: 'POST /itens/excluir-lote',
+    });
 
     res.json({ excluidos: resultado.count });
 });

@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { gerarToken } = require('../utils/jwt');
 const { asyncHandler } = require('../utils/asyncHandler');
+const { registrarEvento } = require('../utils/logger');
 
 // Login aceita tanto o nome de usuário quanto o email no mesmo campo
 // ("identificador") — não precisa a pessoa lembrar qual dos dois
@@ -20,15 +21,41 @@ const login = asyncHandler(async (req, res) => {
     });
 
     if (!usuario || !usuario.ativo) {
+        registrarEvento({
+            nivel: 'erro',
+            origem: req.origemCliente,
+            acao: 'login',
+            mensagem: `Tentativa de login falhou (credenciais inválidas): "${identificador}"`,
+            rota: 'POST /auth/login',
+        });
         return res.status(401).json({ erro: 'Credenciais inválidas' });
     }
 
     const senhaConfere = await bcrypt.compare(senha, usuario.senhaHash);
     if (!senhaConfere) {
+        registrarEvento({
+            nivel: 'erro',
+            origem: req.origemCliente,
+            acao: 'login',
+            mensagem: `Tentativa de login falhou (senha incorreta) para "${usuario.nome}"`,
+            usuarioId: usuario.id,
+            usuarioNome: usuario.nome,
+            rota: 'POST /auth/login',
+        });
         return res.status(401).json({ erro: 'Credenciais inválidas' });
     }
 
     const token = gerarToken(usuario);
+
+    registrarEvento({
+        nivel: 'sucesso',
+        origem: req.origemCliente,
+        acao: 'login',
+        mensagem: `${usuario.nome} entrou no sistema`,
+        usuarioId: usuario.id,
+        usuarioNome: usuario.nome,
+        rota: 'POST /auth/login',
+    });
 
     res.json({
         token,

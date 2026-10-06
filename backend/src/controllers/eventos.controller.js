@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
+const { registrarEvento } = require('../utils/logger');
 
 /**
  * Recalcula o cache de estado atual (setorAtualId / situacaoAtual)
@@ -140,6 +141,22 @@ const sincronizar = asyncHandler(async (req, res) => {
         for (const id of itensAfetados) {
             await recomputarCacheItem(tx, BigInt(id));
         }
+    });
+
+    const erros = resultados.filter((r) => r.status === 'erro').length;
+    const sincronizados = resultados.filter((r) => r.status === 'sincronizado').length;
+
+    registrarEvento({
+        nivel: erros > 0 ? 'aviso' : 'sucesso',
+        origem: 'app',
+        acao: 'sincronizar_eventos',
+        mensagem: `Sincronização do dispositivo "${dispositivoIdentificador}": ${sincronizados} evento(s) aplicado(s)${
+            erros > 0 ? `, ${erros} com erro` : ''
+        } (${eventos.length} no total)`,
+        detalhes: erros > 0 ? JSON.stringify(resultados.filter((r) => r.status === 'erro')) : null,
+        usuarioId: req.usuario.id,
+        usuarioNome: req.usuario.nome,
+        rota: 'POST /eventos/sync',
     });
 
     res.json({ resultados });

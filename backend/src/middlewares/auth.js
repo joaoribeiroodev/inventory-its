@@ -19,6 +19,29 @@ function autenticar(req, res, next) {
     }
 }
 
+// Variante "opcional" de autenticar(): se vier um token válido,
+// preenche req.usuario normalmente; se não vier nenhum (ou vier
+// inválido/expirado), segue sem erro com req.usuario undefined.
+// Usada em rotas que aceitam tanto chamadas autenticadas quanto
+// anônimas — ex: POST /logs, que o app/painel pode chamar para
+// relatar um erro mesmo antes de completar o login (ex: falha de
+// conexão na própria tela de login).
+function autenticarOpcional(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return next();
+    }
+
+    try {
+        const payload = verificarToken(authHeader.substring('Bearer '.length));
+        req.usuario = { id: payload.sub, papel: payload.papel, nome: payload.nome };
+    } catch {
+        // token presente mas inválido/expirado — segue como anônimo
+        // em vez de bloquear o relato do evento
+    }
+    next();
+}
+
 // Restringe uma rota a determinados papéis.
 // Uso: autorizar('admin'), autorizar('admin', 'cadastrador')
 function autorizar(...papeisPermitidos) {
@@ -33,4 +56,4 @@ function autorizar(...papeisPermitidos) {
     };
 }
 
-module.exports = { autenticar, autorizar };
+module.exports = { autenticar, autenticarOpcional, autorizar };

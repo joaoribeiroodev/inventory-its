@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import Modal from '../../../components/Modal';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useToast } from '../../../contexts/ToastContext';
 import { api } from '../../../services/api';
 
 const ROTULOS_SITUACAO = {
@@ -24,6 +25,7 @@ function DetalheDoItem() {
     const { id } = useParams();
     const router = useRouter();
     const { usuario } = useAuth();
+    const toast = useToast();
     const [item, setItem] = useState(null);
     const [eventos, setEventos] = useState([]);
     const [setores, setSetores] = useState([]);
@@ -59,9 +61,14 @@ function DetalheDoItem() {
     }, [id]);
 
     async function salvarEdicao() {
-        await api.atualizarItem(id, { descricao, categoria: categoria || null });
-        setEditando(false);
-        carregar();
+        try {
+            await api.atualizarItem(id, { descricao, categoria: categoria || null });
+            setEditando(false);
+            await carregar();
+            toast.sucesso('Item atualizado com sucesso.');
+        } catch (err) {
+            toast.erro(`Não foi possível salvar as alterações: ${err.message}`);
+        }
     }
 
     async function excluirItem() {
@@ -73,9 +80,10 @@ function DetalheDoItem() {
         setExcluindo(true);
         try {
             await api.excluirItem(id);
+            toast.sucesso('Item excluído com sucesso.');
             router.push('/itens');
         } catch (err) {
-            alert(err.message);
+            toast.erro(`Não foi possível excluir o item: ${err.message}`);
             setExcluindo(false);
         }
     }
@@ -87,8 +95,9 @@ function DetalheDoItem() {
             // Se o item ainda não tinha código, baixar o CSV acabou de
             // gerar um (ver backend) — recarrega pra mostrar na tela.
             if (!item.codigo) await carregar();
+            toast.sucesso('CSV da etiqueta baixado com sucesso.');
         } catch (err) {
-            alert(err.message);
+            toast.erro(`Não foi possível baixar o CSV: ${err.message}`);
         } finally {
             setBaixandoCsv(false);
         }
@@ -103,6 +112,9 @@ function DetalheDoItem() {
             });
             setEditandoMovimentacao(false);
             await carregar();
+            toast.sucesso('Movimentação registrada com sucesso.');
+        } catch (err) {
+            toast.erro(`Não foi possível registrar a movimentação: ${err.message}`);
         } finally {
             setSalvandoMovimentacao(false);
         }
@@ -272,6 +284,7 @@ function DetalheDoItem() {
 }
 
 function ModalAdicionarALote({ item, aberto, onFechar, onAdicionado }) {
+    const toast = useToast();
     const [lotes, setLotes] = useState([]);
     const [loteId, setLoteId] = useState('');
     const [carregando, setCarregando] = useState(false);
@@ -293,8 +306,9 @@ function ModalAdicionarALote({ item, aberto, onFechar, onAdicionado }) {
             await api.adicionarItemALote(loteId, item.id);
             onAdicionado();
             onFechar();
+            toast.sucesso('Item adicionado ao lote com sucesso.');
         } catch (err) {
-            alert(err.message);
+            toast.erro(`Não foi possível adicionar o item ao lote: ${err.message}`);
         } finally {
             setSalvando(false);
         }

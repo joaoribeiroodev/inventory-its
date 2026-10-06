@@ -10,6 +10,12 @@ pelo `docker-compose.yml` na raiz do repositório. O app mobile
 continua sendo instalado normalmente nos celulares; ele só passa a
 apontar pro IP desse servidor em vez do endereço antigo.
 
+O painel web tem uma tela de **Monitoramento** (`/logs`, só pra
+admin) que mostra em tempo real os eventos de sucesso e erro do
+sistema inteiro — painel, app mobile e backend. Isso é gravado numa
+tabela própria (`logs_sistema`), já incluída no `schema.sql` do
+passo 4 — não precisa de nenhum passo extra de configuração.
+
 ## 0. Antes de começar
 
 - Servidor Linux (Ubuntu/Debian) com **IP fixo** na rede da empresa

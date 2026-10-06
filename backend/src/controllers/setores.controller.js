@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
+const { registrarEvento } = require('../utils/logger');
 
 const listar = asyncHandler(async (req, res) => {
     const setores = await prisma.setor.findMany({ orderBy: { nome: 'asc' } });
@@ -11,6 +12,17 @@ const criar = asyncHandler(async (req, res) => {
     if (!nome) return res.status(400).json({ erro: 'Nome é obrigatório' });
 
     const setor = await prisma.setor.create({ data: { nome, descricao: descricao ?? null } });
+
+    registrarEvento({
+        nivel: 'sucesso',
+        origem: req.origemCliente,
+        acao: 'criar_setor',
+        mensagem: `${req.usuario.nome} cadastrou o setor "${setor.nome}"`,
+        usuarioId: req.usuario.id,
+        usuarioNome: req.usuario.nome,
+        rota: 'POST /setores',
+    });
+
     res.status(201).json(setor);
 });
 
@@ -24,6 +36,16 @@ const atualizar = asyncHandler(async (req, res) => {
             ...(descricao !== undefined ? { descricao } : {}),
             ...(ativo !== undefined ? { ativo } : {}),
         },
+    });
+
+    registrarEvento({
+        nivel: 'sucesso',
+        origem: req.origemCliente,
+        acao: 'atualizar_setor',
+        mensagem: `${req.usuario.nome} atualizou o setor "${setor.nome}"`,
+        usuarioId: req.usuario.id,
+        usuarioNome: req.usuario.nome,
+        rota: `PUT /setores/${req.params.id}`,
     });
 
     res.json(setor);
@@ -44,9 +66,17 @@ const excluir = asyncHandler(async (req, res) => {
 
     const itensNoSetor = await prisma.item.count({ where: { setorAtualId: setorId } });
     if (itensNoSetor > 0) {
-        return res.status(400).json({
-            erro: `Esse setor ainda tem ${itensNoSetor} item(ns) alocado(s) nele. Mova os itens para outro setor antes de excluir.`,
+        const mensagem = `Esse setor ainda tem ${itensNoSetor} item(ns) alocado(s) nele. Mova os itens para outro setor antes de excluir.`;
+        registrarEvento({
+            nivel: 'erro',
+            origem: req.origemCliente,
+            acao: 'excluir_setor',
+            mensagem: `Falha ao excluir o setor "${setor.nome}": ${mensagem}`,
+            usuarioId: req.usuario.id,
+            usuarioNome: req.usuario.nome,
+            rota: `DELETE /setores/${req.params.id}`,
         });
+        return res.status(400).json({ erro: mensagem });
     }
 
     // Histórico de movimentação que referencia esse setor (origem ou
@@ -54,6 +84,16 @@ const excluir = asyncHandler(async (req, res) => {
     // referência ao setor em si (setorAnteriorId/setorNovoId viram
     // null), que é o comportamento padrão da relação opcional.
     await prisma.setor.delete({ where: { id: setorId } });
+
+    registrarEvento({
+        nivel: 'sucesso',
+        origem: req.origemCliente,
+        acao: 'excluir_setor',
+        mensagem: `${req.usuario.nome} excluiu o setor "${setor.nome}"`,
+        usuarioId: req.usuario.id,
+        usuarioNome: req.usuario.nome,
+        rota: `DELETE /setores/${req.params.id}`,
+    });
 
     res.status(204).end();
 });

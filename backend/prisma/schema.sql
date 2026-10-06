@@ -135,3 +135,24 @@ CREATE TABLE "lote_etiquetas_itens" (
     CONSTRAINT "lote_etiquetas_itens_item_id_fkey" FOREIGN KEY ("item_id")
         REFERENCES "itens" ("id") ON DELETE CASCADE
 );
+
+CREATE TYPE "NivelLog" AS ENUM ('sucesso', 'erro', 'aviso', 'info');
+CREATE TYPE "OrigemLog" AS ENUM ('web', 'app', 'backend');
+
+CREATE TABLE "logs_sistema" (
+    "id"            BIGSERIAL PRIMARY KEY,
+    "nivel"         "NivelLog" NOT NULL,
+    "origem"        "OrigemLog" NOT NULL,
+    "acao"          VARCHAR(100) NOT NULL,
+    "mensagem"      VARCHAR(500) NOT NULL,
+    "detalhes"      TEXT,
+    "usuario_id"    BIGINT,
+    "usuario_nome"  VARCHAR(150),
+    "rota"          VARCHAR(255),
+    "criado_em"     TIMESTAMP(3) NOT NULL DEFAULT now()
+);
+
+CREATE INDEX "logs_sistema_nivel_idx" ON "logs_sistema" ("nivel");
+CREATE INDEX "logs_sistema_origem_idx" ON "logs_sistema" ("origem");
+CREATE INDEX "logs_sistema_criado_em_idx" ON "logs_sistema" ("criado_em");
+CREATE INDEX "logs_sistema_usuario_id_idx" ON "logs_sistema" ("usuario_id");

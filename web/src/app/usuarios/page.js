@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Modal from '../../components/Modal';
+import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 
 export default function UsuariosPage() {
@@ -14,6 +15,7 @@ export default function UsuariosPage() {
 }
 
 function ListaDeUsuarios() {
+    const toast = useToast();
     const [usuarios, setUsuarios] = useState([]);
     const [carregando, setCarregando] = useState(true);
 
@@ -25,6 +27,8 @@ function ListaDeUsuarios() {
         setCarregando(true);
         try {
             setUsuarios(await api.listarUsuarios());
+        } catch (err) {
+            toast.erro(`Não foi possível carregar os usuários: ${err.message}`);
         } finally {
             setCarregando(false);
         }
@@ -35,8 +39,13 @@ function ListaDeUsuarios() {
     }, []);
 
     async function handleAlterarStatus(usuario) {
-        await api.atualizarUsuario(usuario.id, { ativo: !usuario.ativo });
-        carregar();
+        try {
+            await api.atualizarUsuario(usuario.id, { ativo: !usuario.ativo });
+            await carregar();
+            toast.sucesso(`Usuário "${usuario.nome}" ${usuario.ativo ? 'desativado' : 'ativado'} com sucesso.`);
+        } catch (err) {
+            toast.erro(`Não foi possível alterar o status do usuário: ${err.message}`);
+        }
     }
 
     return (
@@ -108,17 +117,17 @@ function ListaDeUsuarios() {
             <ModalNovoUsuario
                 aberto={modalCriar}
                 onFechar={() => setModalCriar(false)}
-                onCriado={() => { setModalCriar(false); carregar(); }}
+                onCriado={() => { setModalCriar(false); carregar(); toast.sucesso('Usuário cadastrado com sucesso.'); }}
             />
             <ModalEditarUsuario
                 usuario={modalEditar}
                 onFechar={() => setModalEditar(null)}
-                onSalvo={() => { setModalEditar(null); carregar(); }}
+                onSalvo={() => { setModalEditar(null); carregar(); toast.sucesso('Usuário atualizado com sucesso.'); }}
             />
             <ModalAlterarSenha
                 usuario={modalSenha}
                 onFechar={() => setModalSenha(null)}
-                onSalvo={() => setModalSenha(null)}
+                onSalvo={() => { setModalSenha(null); toast.sucesso('Senha alterada com sucesso.'); }}
             />
         </div>
     );

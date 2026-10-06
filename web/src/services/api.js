@@ -10,29 +10,98 @@ function getToken() {
     return localStorage.getItem('auth_token');
 }
 
+// Mensagem amigável para quando a requisição nem chega a ter uma
+// resposta do servidor (rede caiu, servidor fora do ar) — o erro
+// nativo do fetch ("Failed to fetch") não diz nada útil pra quem tá
+// usando o painel.
+function mensagemDeFalhaDeRede() {
+    return 'Não foi possível conectar ao servidor. Verifique sua internet/rede e tente novamente.';
+}
+
+// Reporta uma falha ao log central do sistema (ver tela de
+// Monitoramento, admin). Fire-and-forget: nunca lança, nunca atrasa
+// a resposta pra quem está usando o painel — se esse report falhar
+// (ex: o próprio problema É a conexão), simplesmente não é
+// registrado, sem gerar um loop de erro sobre erro.
+function reportarFalha(caminho, mensagem, status) {
+    if (caminho === '/logs') return; // nunca reporta falha do próprio endpoint de log
+    const token = getToken();
+    fetch(`${BASE_URL}/api/logs`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Origem-Cliente': 'web',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+            nivel: 'erro',
+            origem: 'web',
+            acao: 'requisicao_api',
+            mensagem: `${caminho} — ${mensagem}`,
+            rota: `cliente web: ${caminho}`,
+            detalhes: status ? `HTTP ${status}` : null,
+        }),
+    }).catch(() => {});
+}
+
 async function requisitar(caminho, opcoes = {}) {
     const token = getToken();
 
-    const resposta = await fetch(`${BASE_URL}/api${caminho}`, {
-        ...opcoes,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...opcoes.headers,
-        },
-    });
+    let resposta;
+    try {
+        resposta = await fetch(`${BASE_URL}/api${caminho}`, {
+            ...opcoes,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Origem-Cliente': 'web',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                ...opcoes.headers,
+            },
+        });
+    } catch (falhaDeRede) {
+        const mensagem = mensagemDeFalhaDeRede();
+        reportarFalha(caminho, falhaDeRede.message || mensagem);
+        const erro = new Error(mensagem);
+        erro.semConexao = true;
+        throw erro;
+    }
 
     if (resposta.status === 204) return null;
 
     const dados = await resposta.json().catch(() => null);
 
     if (!resposta.ok) {
-        const erro = new Error(dados?.erro || `Erro ${resposta.status}`);
+        const mensagem = dados?.erro || `Erro ${resposta.status}`;
+        // 401 geralmente é sessão expirada/token inválido — não é um
+        // "erro do sistema" que o admin precisa ver no monitoramento,
+        // então não reporta esse caso específico.
+        if (resposta.status !== 401) {
+            reportarFalha(caminho, mensagem, resposta.status);
+        }
+        const erro = new Error(mensagem);
         erro.status = resposta.status;
         throw erro;
     }
 
     return dados;
+}
+
+// Permite que as próprias telas registrem um evento de sucesso/erro
+// que não vem naturalmente de uma chamada à API (ex: validação de
+// formulário no cliente, ação que o usuário cancelou). Usado com
+// moderação — a maior parte dos eventos já é coberta automaticamente
+// pelo backend (ver controllers) e por reportarFalha() acima.
+function registrarLog({ nivel, acao, mensagem, detalhes }) {
+    const token = getToken();
+    return fetch(`${BASE_URL}/api/logs`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Origem-Cliente': 'web',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ nivel, origem: 'web', acao, mensagem, detalhes }),
+    }).catch(() => {});
 }
 
 export const api = {
@@ -159,4 +228,12 @@ export const api = {
         link.remove();
         window.URL.revokeObjectURL(url);
     },
+
+    // Monitoramento (admin) — ver web/src/app/logs/page.js
+    listarLogs: (filtros = {}) => {
+        const params = new URLSearchParams(filtros).toString();
+        return requisitar(`/logs${params ? `?${params}` : ''}`);
+    },
+    resumoLogs: () => requisitar('/logs/resumo'),
+    registrarLog,
 };

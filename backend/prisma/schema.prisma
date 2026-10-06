@@ -193,3 +193,57 @@ model LoteEtiquetasItem {
   @@id([loteId, itemId])
   @@map("lote_etiquetas_itens")
 }
+
+enum NivelLog {
+  sucesso
+  erro
+  aviso
+  info
+}
+
+enum OrigemLog {
+  web
+  app
+  backend
+}
+
+// Registro de eventos do sistema (sucesso E erro), vindos do painel
+// web, do app mobile e do próprio backend — pensado pra dar aos
+// administradores uma visão de "o que está acontecendo" sem precisar
+// abrir console/logs de servidor (ver tela de Monitoramento no
+// painel web). Toda ação sensível (login, cadastro/edição/exclusão
+// de item, usuário, setor, lote, sincronização do app) grava uma
+// linha aqui, além de QUALQUER exceção não tratada ser capturada
+// automaticamente pelo errorHandler.
+//
+// "usuarioId" NÃO é uma foreign key de propósito (igual
+// Item.loteEtiquetaId): um log precisa sobreviver à exclusão do
+// usuário que o gerou (auditoria), então guardamos também
+// "usuarioNome" como uma cópia ("snapshot") do nome na hora do
+// evento — continua legível mesmo que o usuário seja excluído depois.
+model LogSistema {
+  id          BigInt    @id @default(autoincrement())
+  nivel       NivelLog
+  origem      OrigemLog
+  // Identificador curto da ação, ex: "login", "criar_item",
+  // "excluir_usuario", "sincronizar_eventos" — usado pra filtrar/
+  // agrupar na tela de monitoramento.
+  acao        String    @db.VarChar(100)
+  mensagem    String    @db.VarChar(500)
+  // Detalhe extra opcional: stack trace de erro, JSON de contexto, etc.
+  // Guardado como texto livre — não é pensado pra ser consultado,
+  // só exibido quando o admin expande a linha.
+  detalhes    String?
+  usuarioId   BigInt?   @map("usuario_id")
+  usuarioNome String?   @map("usuario_nome") @db.VarChar(150)
+  // Rota/tela de origem (ex: "POST /api/itens", "app:ItemFormScreen"),
+  // só pra contexto — não é obrigatório.
+  rota        String?   @db.VarChar(255)
+  criadoEm    DateTime  @default(now()) @map("criado_em")
+
+  @@map("logs_sistema")
+  @@index([nivel])
+  @@index([origem])
+  @@index([criadoEm])
+  @@index([usuarioId])
+}

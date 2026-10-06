@@ -19,7 +19,10 @@ export default function Nav() {
 
     if (!usuario) return null;
 
-    const links = usuario.papel === 'admin' ? [...LINKS, { href: '/usuarios', label: 'Usuários' }] : LINKS;
+    const links =
+        usuario.papel === 'admin'
+            ? [...LINKS, { href: '/usuarios', label: 'Usuários' }, { href: '/logs', label: 'Monitoramento' }]
+            : LINKS;
 
     function isAtivo(href) {
         return pathname === href || pathname.startsWith(`${href}/`);

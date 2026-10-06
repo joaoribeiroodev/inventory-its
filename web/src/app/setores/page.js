@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Modal from '../../components/Modal';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 
 export default function SetoresPage() {
@@ -16,6 +17,7 @@ export default function SetoresPage() {
 
 function ListaDeSetores() {
     const { usuario } = useAuth();
+    const toast = useToast();
     const [setores, setSetores] = useState([]);
     const [carregando, setCarregando] = useState(true);
 
@@ -31,6 +33,8 @@ function ListaDeSetores() {
         setCarregando(true);
         try {
             setSetores(await api.listarSetores());
+        } catch (err) {
+            toast.erro(`Não foi possível carregar os setores: ${err.message}`);
         } finally {
             setCarregando(false);
         }
@@ -50,8 +54,9 @@ function ListaDeSetores() {
         try {
             await api.excluirSetor(setor.id);
             await carregar();
+            toast.sucesso(`Setor "${setor.nome}" excluído com sucesso.`);
         } catch (err) {
-            alert(err.message);
+            toast.erro(`Não foi possível excluir o setor: ${err.message}`);
         } finally {
             setExcluindoId(null);
         }
@@ -131,12 +136,12 @@ function ListaDeSetores() {
             <ModalNovoSetor
                 aberto={modalCriar}
                 onFechar={() => setModalCriar(false)}
-                onCriado={() => { setModalCriar(false); carregar(); }}
+                onCriado={() => { setModalCriar(false); carregar(); toast.sucesso('Setor cadastrado com sucesso.'); }}
             />
             <ModalEditarSetor
                 setor={modalEditar}
                 onFechar={() => setModalEditar(null)}
-                onSalvo={() => { setModalEditar(null); carregar(); }}
+                onSalvo={() => { setModalEditar(null); carregar(); toast.sucesso('Setor atualizado com sucesso.'); }}
             />
         </div>
     );

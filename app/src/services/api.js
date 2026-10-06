@@ -4,23 +4,70 @@
 
 import { getServerUrl, getToken } from '../database/queries';
 
+// Reporta uma falha ao log central do sistema (ver tela de
+// Monitoramento no painel web, admin). Fire-and-forget e silencioso:
+// o app passa a maior parte do tempo com conectividade instável em
+// campo (ver ConnectivityContext), então isso NUNCA pode travar nem
+// lançar — se o próprio report falhar (sem conexão), simplesmente
+// não é registrado agora.
+async function reportarFalha(caminho, mensagem, status) {
+    if (caminho === '/logs') return; // nunca reporta falha do próprio endpoint de log
+    try {
+        const baseUrl = await getServerUrl();
+        const token = await getToken();
+        await fetch(`${baseUrl}/api/logs`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Origem-Cliente': 'app',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+                nivel: 'erro',
+                origem: 'app',
+                acao: 'requisicao_api',
+                mensagem: `${caminho} — ${mensagem}`,
+                rota: `app: ${caminho}`,
+                detalhes: status ? `HTTP ${status}` : null,
+            }),
+        });
+    } catch {
+        // offline — ver comentário acima, desiste silenciosamente
+    }
+}
+
 async function requisitar(caminho, opcoes = {}) {
     const baseUrl = await getServerUrl();
     const token = await getToken();
 
-    const resposta = await fetch(`${baseUrl}/api${caminho}`, {
-        ...opcoes,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...opcoes.headers,
-        },
-    });
+    let resposta;
+    try {
+        resposta = await fetch(`${baseUrl}/api${caminho}`, {
+            ...opcoes,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Origem-Cliente': 'app',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                ...opcoes.headers,
+            },
+        });
+    } catch (falhaDeRede) {
+        // Sem conexão com o servidor configurado — não reporta isso ao
+        // log remoto (seria inútil: é exatamente a falta de conexão que
+        // impede o report de chegar), só sinaliza pra quem chamou.
+        const erro = new Error('Não foi possível conectar ao servidor. Verifique a conexão ou o endereço configurado.');
+        erro.semConexao = true;
+        throw erro;
+    }
 
     const dados = await resposta.json().catch(() => null);
 
     if (!resposta.ok) {
-        const erro = new Error(dados?.erro || `Erro ${resposta.status}`);
+        const mensagem = dados?.erro || `Erro ${resposta.status}`;
+        if (resposta.status !== 401) {
+            reportarFalha(caminho, mensagem, resposta.status);
+        }
+        const erro = new Error(mensagem);
         erro.status = resposta.status;
         throw erro;
     }

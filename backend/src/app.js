@@ -16,6 +16,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// O painel web e o app mobile mandam esse header em toda chamada
+// (ver services/api.js dos dois) pra identificar de onde veio a
+// requisição — usado só para rotular os eventos gravados no log do
+// sistema (ver utils/logger.js), nunca pra lógica de negócio.
+// 'backend' cobre o caso de algo gerado pelo próprio servidor (ex:
+// seed, scripts) sem passar por essa camada HTTP.
+app.use((req, res, next) => {
+    const origem = req.headers['x-origem-cliente'];
+    req.origemCliente = origem === 'web' || origem === 'app' ? origem : 'backend';
+    next();
+});
+
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api', routes);

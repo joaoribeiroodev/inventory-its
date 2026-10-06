@@ -3,11 +3,12 @@
 // aplicar, limpa cache de referência, NUNCA apaga fila pendente).
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { getServerUrl, contarEventosPendentes } from '../database/queries';
 import { testarEReconectar } from '../services/syncService';
 import { useAuth } from '../contexts/AuthContext';
 import { useConnectivity } from '../contexts/ConnectivityContext';
+import { useToast } from '../contexts/ToastContext';
 import Campo from '../components/Campo';
 import Botao from '../components/Botao';
 import Cartao from '../components/Cartao';
@@ -17,6 +18,7 @@ import { colors, spacing, typography } from '../theme';
 export default function ConfiguracoesScreen() {
     const { usuario, logout } = useAuth();
     const { isOnline } = useConnectivity();
+    const toast = useToast();
 
     const [endereco, setEndereco] = useState('');
     const [pendentes, setPendentes] = useState(0);
@@ -35,13 +37,12 @@ export default function ConfiguracoesScreen() {
         setProcessando(true);
         try {
             const resultado = await testarEReconectar(endereco.trim());
-            Alert.alert(
-                'Reconectado',
-                `Servidor: ${endereco}\nItens sincronizados: ${resultado.totalItens}\nEventos enviados: ${resultado.enviados}`
+            toast.sucesso(
+                `Reconectado! ${resultado.totalItens} item(ns) e ${resultado.enviados} evento(s) sincronizados.`
             );
             await carregar();
         } catch (err) {
-            Alert.alert('Falha na conexão', 'Não foi possível conectar nesse endereço. Nada foi alterado.');
+            toast.erro('Não foi possível conectar nesse endereço. Nada foi alterado.');
         } finally {
             setProcessando(false);
         }

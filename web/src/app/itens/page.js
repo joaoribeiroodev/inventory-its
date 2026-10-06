@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 
 const ROTULOS_SITUACAO = {
@@ -21,6 +22,7 @@ export default function ItensPage() {
 
 function ListaDeItens() {
     const { usuario } = useAuth();
+    const toast = useToast();
     const [itens, setItens] = useState([]);
     const [setores, setSetores] = useState([]);
     const [busca, setBusca] = useState('');
@@ -50,7 +52,7 @@ function ListaDeItens() {
             setItens(await api.listarItens(filtros));
             setSelecionados(new Set());
         } catch (err) {
-            alert(err.message);
+            toast.erro(err.semConexao ? err.message : `Não foi possível carregar os itens: ${err.message}`);
         } finally {
             setCarregando(false);
         }
@@ -107,8 +109,9 @@ function ListaDeItens() {
         try {
             const descricao = descricaoFiltro();
             await api.baixarXlsxItens(filtrosAtuais(), descricao ? slugify(descricao) : '');
+            toast.sucesso('Planilha exportada com sucesso.');
         } catch (err) {
-            alert(err.message);
+            toast.erro(`Não foi possível exportar a planilha: ${err.message}`);
         } finally {
             setExportando(false);
         }
@@ -137,10 +140,12 @@ function ListaDeItens() {
 
         setExcluindo(true);
         try {
+            const quantidade = selecionados.size;
             await api.excluirItensEmLote([...selecionados]);
             await carregar(filtrosAtuais());
+            toast.sucesso(`${quantidade} item(ns) excluído(s) com sucesso.`);
         } catch (err) {
-            alert(err.message);
+            toast.erro(`Não foi possível excluir os itens selecionados: ${err.message}`);
         } finally {
             setExcluindo(false);
         }

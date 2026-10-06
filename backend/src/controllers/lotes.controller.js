@@ -1,6 +1,7 @@
 const prisma = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { proximoNumeroDisponivel } = require('../utils/codigoGerado');
+const { registrarEvento } = require('../utils/logger');
 
 // GET /lotes/pendentes — itens que ainda não tiveram etiqueta gerada
 const listarPendentes = asyncHandler(async (req, res) => {
@@ -85,6 +86,16 @@ const criar = asyncHandler(async (req, res) => {
         });
 
         return novoLote;
+    });
+
+    registrarEvento({
+        nivel: 'sucesso',
+        origem: req.origemCliente,
+        acao: 'gerar_lote',
+        mensagem: `${req.usuario.nome} gerou um lote de ${itens.length} etiqueta(s)`,
+        usuarioId: req.usuario.id,
+        usuarioNome: req.usuario.nome,
+        rota: 'POST /lotes',
     });
 
     res.status(201).json({ ...lote, itens });

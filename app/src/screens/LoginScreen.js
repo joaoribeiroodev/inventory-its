@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import Campo from '../components/Campo';
 import Botao from '../components/Botao';
 import { colors, spacing, typography } from '../theme';
 
 export default function LoginScreen() {
     const { login } = useAuth();
+    const toast = useToast();
     const [identificador, setIdentificador] = useState('');
     const [senha, setSenha] = useState('');
     const [erro, setErro] = useState(null);
@@ -17,6 +19,7 @@ export default function LoginScreen() {
         setCarregando(true);
         try {
             await login(identificador, senha);
+            toast.sucesso('Login realizado com sucesso.');
         } catch (err) {
             setErro(
                 err.status === 401

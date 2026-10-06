@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
+const { registrarEvento } = require('../utils/logger');
 
 // Todas as rotas deste controller são restritas a admin
 // (ver middleware autorizar('admin') nas rotas)
@@ -34,10 +35,30 @@ const criar = asyncHandler(async (req, res) => {
         // mostrar uma mensagem que faz sentido pra quem tá cadastrando.
         if (err.code === 'P2002') {
             const campo = err.meta?.target?.includes('usuario') ? 'usuário' : 'email';
-            return res.status(409).json({ erro: `Esse ${campo} já está em uso` });
+            const mensagem = `Esse ${campo} já está em uso`;
+            registrarEvento({
+                nivel: 'erro',
+                origem: req.origemCliente,
+                acao: 'criar_usuario',
+                mensagem: `Falha ao criar usuário "${nome}": ${mensagem}`,
+                usuarioId: req.usuario.id,
+                usuarioNome: req.usuario.nome,
+                rota: 'POST /usuarios',
+            });
+            return res.status(409).json({ erro: mensagem });
         }
         throw err;
     }
+
+    registrarEvento({
+        nivel: 'sucesso',
+        origem: req.origemCliente,
+        acao: 'criar_usuario',
+        mensagem: `${req.usuario.nome} cadastrou o usuário "${usuario.nome}" (${usuario.papel})`,
+        usuarioId: req.usuario.id,
+        usuarioNome: req.usuario.nome,
+        rota: 'POST /usuarios',
+    });
 
     res.status(201).json(usuario);
 });
@@ -65,10 +86,29 @@ const atualizar = asyncHandler(async (req, res) => {
         });
     } catch (err) {
         if (err.code === 'P2002') {
+            registrarEvento({
+                nivel: 'erro',
+                origem: req.origemCliente,
+                acao: 'atualizar_usuario',
+                mensagem: `Falha ao atualizar usuário #${req.params.id}: nome de usuário já em uso`,
+                usuarioId: req.usuario.id,
+                usuarioNome: req.usuario.nome,
+                rota: `PUT /usuarios/${req.params.id}`,
+            });
             return res.status(409).json({ erro: 'Esse usuário já está em uso' });
         }
         throw err;
     }
+
+    registrarEvento({
+        nivel: 'sucesso',
+        origem: req.origemCliente,
+        acao: 'atualizar_usuario',
+        mensagem: `${req.usuario.nome} atualizou o usuário "${usuario.nome}"${senha ? ' (incluindo senha)' : ''}`,
+        usuarioId: req.usuario.id,
+        usuarioNome: req.usuario.nome,
+        rota: `PUT /usuarios/${req.params.id}`,
+    });
 
     res.json(usuario);
 });

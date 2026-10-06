@@ -1,5 +1,6 @@
 import React from 'react';
 import { AuthProvider } from '../contexts/AuthContext';
+import { ToastProvider } from '../contexts/ToastContext';
 import Nav from '../components/Nav';
 import './globals.css';
 
@@ -17,10 +18,12 @@ export default function RootLayout({ children }) {
     return (
         <html lang="pt-BR">
             <body>
-                <AuthProvider>
-                    <Nav />
-                    <main className="page">{children}</main>
-                </AuthProvider>
+                <ToastProvider>
+                    <AuthProvider>
+                        <Nav />
+                        <main className="page">{children}</main>
+                    </AuthProvider>
+                </ToastProvider>
             </body>
         </html>
     );

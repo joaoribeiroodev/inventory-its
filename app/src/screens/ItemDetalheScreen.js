@@ -4,12 +4,13 @@
 // cacheado — ver decisão de arquitetura).
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as Crypto from 'expo-crypto';
 import { buscarItemPorId, listarSetoresLocais, enfileirarEvento, aplicarEventoNoCacheLocal, aplicarEdicaoNoCacheLocal } from '../database/queries';
 import { useConnectivity } from '../contexts/ConnectivityContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { api } from '../services/api';
 import Botao from '../components/Botao';
 import Badge from '../components/Badge';
@@ -23,6 +24,7 @@ export default function ItemDetalheScreen({ route, navigation }) {
     const { id } = route.params;
     const { isOnline } = useConnectivity();
     const { usuario } = useAuth();
+    const toast = useToast();
     const podeEditar = usuario?.papel === 'admin' || usuario?.papel === 'cadastrador';
 
     const [item, setItem] = useState(null);
@@ -63,26 +65,32 @@ export default function ItemDetalheScreen({ route, navigation }) {
             return;
         }
 
-        // O timestamp é do PRÓPRIO APARELHO — decisão de arquitetura:
-        // a ordem "oficial" dos eventos é definida por ele, não pela
-        // ordem de chegada ao servidor.
-        await enfileirarEvento({
-            uuidEvento: Crypto.randomUUID(),
-            itemId: item.id,
-            itemCodigo: item.codigo,
-            setorNovoId: mudouSetor ? setorSelecionado : null,
-            situacaoNova: mudouSituacao ? situacaoSelecionada : null,
-            timestampEvento: new Date().toISOString(),
-        });
+        try {
+            // O timestamp é do PRÓPRIO APARELHO — decisão de arquitetura:
+            // a ordem "oficial" dos eventos é definida por ele, não pela
+            // ordem de chegada ao servidor.
+            await enfileirarEvento({
+                uuidEvento: Crypto.randomUUID(),
+                itemId: item.id,
+                itemCodigo: item.codigo,
+                setorNovoId: mudouSetor ? setorSelecionado : null,
+                situacaoNova: mudouSituacao ? situacaoSelecionada : null,
+                timestampEvento: new Date().toISOString(),
+            });
 
-        // Reflete a mudança no cache local na hora, sem esperar sync
-        await aplicarEventoNoCacheLocal(item.id, {
-            setorNovoNome: mudouSetor ? novoSetorNome : null,
-            situacaoNova: mudouSituacao ? situacaoSelecionada : null,
-        });
+            // Reflete a mudança no cache local na hora, sem esperar sync
+            await aplicarEventoNoCacheLocal(item.id, {
+                setorNovoNome: mudouSetor ? novoSetorNome : null,
+                situacaoNova: mudouSituacao ? situacaoSelecionada : null,
+            });
 
-        setSalvando(false);
-        navigation.goBack();
+            toast.sucesso('Movimentação registrada — será sincronizada com o servidor.');
+            navigation.goBack();
+        } catch (err) {
+            toast.erro(`Não foi possível registrar a movimentação: ${err.message}`);
+        } finally {
+            setSalvando(false);
+        }
     }
 
     // Edição cadastral (descrição/categoria) exige conexão — mas agora
@@ -107,8 +115,9 @@ export default function ItemDetalheScreen({ route, navigation }) {
             });
             setItem({ ...item, descricao: descricaoEdit, categoria: categoriaEdit || null });
             setEditando(false);
+            toast.sucesso('Item atualizado com sucesso.');
         } catch (err) {
-            Alert.alert('Erro ao salvar edição', err.message);
+            toast.erro(`Não foi possível salvar a edição: ${err.message}`);
         } finally {
             setSalvandoEdicao(false);
         }

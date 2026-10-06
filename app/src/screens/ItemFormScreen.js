@@ -2,9 +2,10 @@
 // arquitetura: geração de código único não é segura offline).
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { api } from '../services/api';
+import { useToast } from '../contexts/ToastContext';
 import Campo from '../components/Campo';
 import Botao from '../components/Botao';
 import Cartao from '../components/Cartao';
@@ -12,6 +13,7 @@ import SeletorBusca from '../components/SeletorBusca';
 import { colors, spacing, typography } from '../theme';
 
 export default function ItemFormScreen({ navigation, route }) {
+    const toast = useToast();
     // Quando vem de um "bipar" que não achou nada cadastrado no cache
     // local (ver ScannerScreen.js), o código lido chega aqui pra já
     // deixar o número de etiqueta pré-preenchido.
@@ -31,22 +33,27 @@ export default function ItemFormScreen({ navigation, route }) {
 
     async function handleSalvar() {
         if (!descricao.trim()) {
-            Alert.alert('Descrição é obrigatória');
+            toast.erro('Descrição é obrigatória');
             return;
         }
 
         setSalvando(true);
         try {
-            await api.criarItem({
+            const item = await api.criarItem({
                 descricao: descricao.trim(),
                 categoria: categoria.trim() || null,
                 numeroEtiqueta: numeroEtiqueta.trim() || null,
                 setorInicialId: setorId || null,
                 situacaoInicial,
             });
+            toast.sucesso(
+                item.patrimonioDuplicado
+                    ? 'Item cadastrado, mas essa etiqueta já está em uso por outro item.'
+                    : 'Item cadastrado com sucesso.'
+            );
             navigation.goBack();
         } catch (err) {
-            Alert.alert('Erro ao criar item', err.message);
+            toast.erro(`Não foi possível criar o item: ${err.message}`);
         } finally {
             setSalvando(false);
         }

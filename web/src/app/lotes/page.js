@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Modal from '../../components/Modal';
+import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 
 export default function LotesPage() {
@@ -14,6 +15,7 @@ export default function LotesPage() {
 }
 
 function GestaoDeLotes() {
+    const toast = useToast();
     const [pendentes, setPendentes] = useState([]);
     const [lotes, setLotes] = useState([]);
     const [gerando, setGerando] = useState(false);
@@ -94,10 +96,12 @@ function GestaoDeLotes() {
     async function handleGerarLote() {
         setGerando(true);
         try {
+            const quantidade = selecionados.size;
             await api.gerarLote({ itemIds: [...selecionados] });
             carregar();
+            toast.sucesso(`Lote de ${quantidade} etiqueta(s) gerado com sucesso.`);
         } catch (err) {
-            alert(err.message);
+            toast.erro(`Não foi possível gerar o lote: ${err.message}`);
         } finally {
             setGerando(false);
         }

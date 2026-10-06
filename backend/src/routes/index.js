@@ -8,5 +8,6 @@ router.use('/eventos', require('./eventos.routes'));
 router.use('/setores', require('./setores.routes'));
 router.use('/usuarios', require('./usuarios.routes'));
 router.use('/lotes', require('./lotes.routes'));
+router.use('/logs', require('./logs.routes'));
 
 module.exports = router;

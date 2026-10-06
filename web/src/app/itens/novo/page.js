@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import SeletorBusca from '../../../components/SeletorBusca';
+import { useToast } from '../../../contexts/ToastContext';
 import { api } from '../../../services/api';
 
 export default function NovoItemPage() {
@@ -22,6 +23,7 @@ function FormularioNovoItem() {
     // código lido vem na URL — já deixa pré-preenchido o número da
     // etiqueta, só falta o usuário completar a descrição.
     const codigoPreenchido = searchParams.get('codigo') ?? '';
+    const toast = useToast();
 
     const [descricao, setDescricao] = useState('');
     const [categoria, setCategoria] = useState('');
@@ -48,6 +50,11 @@ function FormularioNovoItem() {
                 setorInicialId: setorId || null,
                 situacaoInicial,
             });
+            if (item.patrimonioDuplicado) {
+                toast.aviso('Item cadastrado, mas essa etiqueta já está em uso por outro item.');
+            } else {
+                toast.sucesso('Item cadastrado com sucesso.');
+            }
             router.push(`/itens/${item.id}`);
         } catch (err) {
             setErro(err.message);
