@@ -1,11 +1,15 @@
 // =========================================================
 // inventory-its — Prisma schema
 //
-// Banco: PostgreSQL (hospedado gratuitamente no Neon — ver
-// DATABASE_URL no .env). Este arquivo é a ÚNICA fonte de
-// verdade do schema: para criar/atualizar as tabelas no banco,
-// rode `npm run prisma:push` (executa `prisma db push`), sem
-// precisar de nenhum script SQL manual.
+// Este arquivo é a ÚNICA fonte de verdade do schema. Pra criar as
+// tabelas no banco, normalmente roda `npm run prisma:push`
+// (executa `prisma db push`) — MAS esse comando precisa baixar um
+// binário de `binaries.prisma.sh` na primeira vez, e isso fica
+// bloqueado em rede corporativa restritiva (confirmado — ver
+// DEPLOY.md). Pra esse caso, `backend/prisma/schema.sql` tem o
+// mesmo schema em SQL puro, aplicável via `psql` direto (só fala
+// com o Postgres, nenhuma chamada externa). Se o schema.prisma
+// mudar, schema.sql precisa ser atualizado junto.
 // =========================================================
 
 generator client {

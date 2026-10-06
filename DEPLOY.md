@@ -88,11 +88,26 @@ docker compose up -d --build
 docker compose ps        # os 3 devem aparecer como "running"/"healthy"
 ```
 
-Crie as tabelas no banco novo (schema vem do `schema.prisma`, não
-precisa escrever SQL):
+Crie as tabelas no banco novo. **Use o SQL puro, não o
+`prisma db push`** — esse comando precisa baixar um binário de
+`binaries.prisma.sh` na primeira vez, e esse domínio específico
+costuma ficar bloqueado em rede corporativa (confirmado nesse
+projeto — o `npm`/Docker Hub funcionam normalmente, só esse host do
+Prisma que não passa). O arquivo `backend/prisma/schema.sql` tem o
+mesmo schema em SQL — aplicar ele só fala com o Postgres local,
+nenhuma chamada externa:
 ```bash
-docker compose exec backend npx prisma db push
+cat backend/prisma/schema.sql | docker compose exec -T postgres \
+  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 ```
+(Se as variáveis `$POSTGRES_USER`/`$POSTGRES_DB` não estiverem no seu
+shell atual, rode `export $(grep -v '^#' .env | xargs)` antes, ou
+simplesmente troque pelos valores literais que você colocou no `.env`.)
+
+Se a sua rede **não** bloquear o Prisma (vale testar — algumas não
+bloqueiam), `docker compose exec backend npx prisma db push` faz a
+mesma coisa direto do `schema.prisma`. Mas se já se sabe que bloqueia,
+nem tente — vai só travar/dar timeout.
 
 Se você **não** vai migrar dados antigos (começando do zero), crie o
 primeiro admin:
@@ -120,7 +135,7 @@ docker run --rm -v "$PWD":/dump postgres:16-alpine \
 scp neon-backup.sql usuario@IP_DO_SERVIDOR:/opt/inventory-its/
 
 # 3) Já no servidor, com os containers rodando e as tabelas já criadas
-#    (prisma db push do passo 4), restaura os dados:
+#    (schema.sql do passo 4), restaura os dados:
 cd /opt/inventory-its
 cat neon-backup.sql | docker compose exec -T postgres \
   psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
@@ -199,10 +214,17 @@ cd /opt/inventory-its
 git pull
 docker compose up -d --build
 ```
-Se a mudança alterou o `schema.prisma`, rode de novo:
+Se a mudança alterou o `schema.prisma` (tabela/campo novo), **não**
+roda `prisma db push` (mesmo bloqueio de rede). Nesses casos eu
+sempre vou te passar junto um pequeno `ALTER TABLE ...` pra aplicar
+do mesmo jeito que o `schema.sql` inicial:
 ```bash
-docker compose exec backend npx prisma db push
+echo "ALTER TABLE ..." | docker compose exec -T postgres \
+  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 ```
+E atualizo o `backend/prisma/schema.sql` pra refletir o estado novo,
+pra ficar documentado (mesmo sem rodar ele de novo, serve de
+referência de "como o banco deveria estar").
 
 ## Troubleshooting rápido
 
@@ -219,3 +241,26 @@ docker compose exec backend npx prisma db push
   PCs** → geralmente é firewall (passo 6) ou o `NEXT_PUBLIC_API_URL`
   apontando pra `localhost`/`127.0.0.1` em vez do IP real do
   servidor.
+- **`docker compose up -d --build` falha no próprio `backend`, com
+  erro mencionando `binaries.prisma.sh` ou "Failed to fetch"** → é o
+  mesmo bloqueio de rede do `prisma db push`, só que acontece durante
+  o build (o `Dockerfile` roda `prisma generate` uma vez, que também
+  baixa um binário de lá — isso é inevitável, o Prisma Client não
+  funciona sem ele, mas só precisa baixar UMA vez, não em toda
+  consulta). Costuma ser bem menos provável de ser bloqueado que o
+  `db push` (filtros corporativos tendem a liberar o que é necessário
+  pra instalar pacotes, e esse download acontece junto do `npm
+  install`/build), mas se acontecer, a saída é buildar a imagem numa
+  máquina com internet livre (seu notebook, por exemplo) e levar ela
+  pro servidor:
+  ```bash
+  # na máquina com internet livre, dentro da pasta do projeto:
+  docker compose build backend
+  docker save inventory-its-backend | gzip > inventory-its-backend.tar.gz
+  scp inventory-its-backend.tar.gz usuario@IP_DO_SERVIDOR:/opt/inventory-its/
+
+  # no servidor:
+  cd /opt/inventory-its
+  docker load < inventory-its-backend.tar.gz
+  docker compose up -d
+  ```
