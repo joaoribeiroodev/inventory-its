@@ -21,6 +21,7 @@ export default function ItemFormScreen({ navigation, route }) {
 
     const [descricao, setDescricao] = useState('');
     const [categoria, setCategoria] = useState('');
+    const [observacoes, setObservacoes] = useState('');
     const [numeroEtiqueta, setNumeroEtiqueta] = useState(codigoPreenchido);
     const [setores, setSetores] = useState([]);
     const [setorId, setSetorId] = useState(null);
@@ -42,6 +43,7 @@ export default function ItemFormScreen({ navigation, route }) {
             const item = await api.criarItem({
                 descricao: descricao.trim(),
                 categoria: categoria.trim() || null,
+                observacoes: observacoes.trim() || null,
                 numeroEtiqueta: numeroEtiqueta.trim() || null,
                 setorInicialId: setorId || null,
                 situacaoInicial,
@@ -82,13 +84,22 @@ export default function ItemFormScreen({ navigation, route }) {
                     value={numeroEtiqueta}
                     onChangeText={setNumeroEtiqueta}
                 />
+                <Campo
+                    label="Observações (opcional)"
+                    placeholder="Qualquer nota adicional sobre o item"
+                    value={observacoes}
+                    onChangeText={setObservacoes}
+                    multiline
+                    numberOfLines={3}
+                    style={{ minHeight: 80, textAlignVertical: 'top' }}
+                />
 
                 <Text style={styles.label}>Setor inicial</Text>
                 <SeletorBusca
-                    opcoes={setores}
+                    opcoes={setores.map((s) => ({ id: s.id, nome: s.nomeCompleto ?? s.nome }))}
                     valorId={setorId}
                     onSelecionar={setSetorId}
-                    placeholder="Buscar setor por nome..."
+                    placeholder="Buscar por terminal ou setor..."
                     opcaoVazia="Sem setor inicial"
                 />
 

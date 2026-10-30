@@ -8,6 +8,11 @@ import { api } from '../services/api';
 import Badge from '../components/Badge';
 import { colors, spacing, infoSituacao } from '../theme';
 
+const ROTULOS_TERMINAL = {
+    sao_joaquim: 'São Joaquim',
+    bom_despacho: 'Bom Despacho',
+};
+
 export default function HistoricoScreen({ route }) {
     const { id } = route.params;
     const [eventos, setEventos] = useState(null);
@@ -39,7 +44,11 @@ export default function HistoricoScreen({ route }) {
                             {new Date(evento.timestampEvento).toLocaleString('pt-BR')}
                         </Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 4 }}>
-                            {evento.setorNovo && <Text style={styles.texto}>{evento.setorNovo.nome}</Text>}
+                            {evento.setorNovo && (
+                                <Text style={styles.texto}>
+                                    {(ROTULOS_TERMINAL[evento.setorNovo.terminal] ?? evento.setorNovo.terminal)} — {evento.setorNovo.nome}
+                                </Text>
+                            )}
                             {situacao && <Badge texto={situacao.rotulo} bg={situacao.bg} cor={situacao.cor} />}
                         </View>
                         <Text style={styles.usuario}>por {evento.usuario?.nome}</Text>

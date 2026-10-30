@@ -32,6 +32,18 @@ enum Situacao {
   ruim
 }
 
+// Os dois terminais físicos da Internacional Travessias (prédios).
+// Antes disso, "Setor.nome" misturava terminal + departamento no
+// mesmo texto (ex. "BOM DESPACHO - CCO" — ver importar-levantamento.js
+// e conversa com o João); virou campo próprio porque 1) o painel
+// precisa filtrar/relatar por terminal sem parsear string, e 2) fica
+// explícito que "CCO" do São Joaquim e "CCO" do Bom Despacho são
+// salas físicas diferentes, não o mesmo setor.
+enum Terminal {
+  sao_joaquim
+  bom_despacho
+}
+
 model Usuario {
   id           BigInt   @id @default(autoincrement())
   nome         String   @db.VarChar(150)
@@ -72,7 +84,13 @@ model Dispositivo {
 
 model Setor {
   id        BigInt   @id @default(autoincrement())
-  nome      String   @unique @db.VarChar(150)
+  terminal  Terminal
+  // Só o nome do departamento/sala (ex. "CCO", "TI") — SEM o prédio
+  // mais (ver enum Terminal acima). Não é mais @unique sozinho: o
+  // mesmo departamento existe nos dois terminais (são salas físicas
+  // diferentes), então a combinação terminal+nome é que precisa ser
+  // única.
+  nome      String   @db.VarChar(150)
   descricao String?  @db.VarChar(255)
   ativo     Boolean  @default(true)
   criadoEm  DateTime @default(now()) @map("criado_em")
@@ -82,6 +100,7 @@ model Setor {
   eventosNovos      EventoMovimentacao[] @relation("SetorNovo")
 
   @@map("setores")
+  @@unique([terminal, nome])
 }
 
 model Item {
@@ -103,6 +122,11 @@ model Item {
   codigo            String?   @db.VarChar(30)
   descricao         String    @db.VarChar(255)
   categoria         String?   @db.VarChar(100)
+  // Texto livre pra qualquer nota adicional sobre o item (estado,
+  // detalhe de manutenção, observação do cadastrador etc.) —
+  // independente do histórico de movimentação, que já tem seu
+  // próprio campo "observacao" por evento (EventoMovimentacao).
+  observacoes       String?   @db.Text
 
   // Número bruto lido do código de barras da etiqueta de patrimônio
   // física (ex.: "9637"). Sempre igual ao "codigo" quando o item tem

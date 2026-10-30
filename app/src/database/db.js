@@ -41,6 +41,7 @@ export async function getDb() {
             patrimonio_duplicado INTEGER NOT NULL DEFAULT 0,
             descricao TEXT NOT NULL,
             categoria TEXT,
+            observacoes TEXT,
             situacao_atual TEXT NOT NULL,
             setor_atual TEXT
         );
@@ -106,6 +107,14 @@ export async function getDb() {
     // no formato novo (com "id") mas ainda sem essa coluna.
     try {
         await dbInstance.execAsync('ALTER TABLE itens ADD COLUMN patrimonio_duplicado INTEGER NOT NULL DEFAULT 0;');
+    } catch (err) {
+        if (!String(err.message).includes('duplicate column')) throw err;
+    }
+
+    // Migração pra quem já tinha o app instalado antes do campo
+    // "observações" existir no item.
+    try {
+        await dbInstance.execAsync('ALTER TABLE itens ADD COLUMN observacoes TEXT;');
     } catch (err) {
         if (!String(err.message).includes('duplicate column')) throw err;
     }

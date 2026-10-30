@@ -27,6 +27,7 @@ function FormularioNovoItem() {
 
     const [descricao, setDescricao] = useState('');
     const [categoria, setCategoria] = useState('');
+    const [observacoes, setObservacoes] = useState('');
     const [numeroEtiqueta, setNumeroEtiqueta] = useState(codigoPreenchido);
     const [setores, setSetores] = useState([]);
     const [setorId, setSetorId] = useState('');
@@ -46,6 +47,7 @@ function FormularioNovoItem() {
             const item = await api.criarItem({
                 descricao,
                 categoria: categoria || null,
+                observacoes: observacoes.trim() || null,
                 numeroEtiqueta: numeroEtiqueta.trim() || null,
                 setorInicialId: setorId || null,
                 situacaoInicial,
@@ -116,12 +118,23 @@ function FormularioNovoItem() {
                     </div>
 
                     <div className="form-group">
+                        <label className="form-label">Observações (opcional)</label>
+                        <textarea
+                            className="form-control"
+                            rows={3}
+                            value={observacoes}
+                            onChange={(e) => setObservacoes(e.target.value)}
+                            placeholder="Qualquer nota adicional sobre o item"
+                        />
+                    </div>
+
+                    <div className="form-group">
                         <label className="form-label">Setor inicial</label>
                         <SeletorBusca
-                            opcoes={setores}
+                            opcoes={setores.map((s) => ({ id: s.id, nome: s.nomeCompleto }))}
                             valorId={setorId}
                             onSelecionar={setSetorId}
-                            placeholder="Buscar setor por nome..."
+                            placeholder="Buscar por terminal ou setor..."
                             opcaoVazia="Sem setor inicial"
                         />
                     </div>

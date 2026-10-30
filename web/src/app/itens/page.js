@@ -12,6 +12,11 @@ const ROTULOS_SITUACAO = {
     ruim: 'Ruim',
 };
 
+const ROTULOS_TERMINAL = {
+    sao_joaquim: 'São Joaquim',
+    bom_despacho: 'Bom Despacho',
+};
+
 export default function ItensPage() {
     return (
         <ProtectedRoute>
@@ -26,6 +31,7 @@ function ListaDeItens() {
     const [itens, setItens] = useState([]);
     const [setores, setSetores] = useState([]);
     const [busca, setBusca] = useState('');
+    const [terminal, setTerminal] = useState('');
     const [setorId, setSetorId] = useState('');
     const [situacao, setSituacao] = useState('');
     const [carregando, setCarregando] = useState(true);
@@ -36,11 +42,12 @@ function ListaDeItens() {
     const podeCriar = usuario?.papel === 'admin' || usuario?.papel === 'cadastrador';
     // Mesma regra do detalhe do item: só admin exclui.
     const podeExcluir = usuario?.papel === 'admin';
-    const temFiltroAtivo = !!(busca || setorId || situacao);
+    const temFiltroAtivo = !!(busca || terminal || setorId || situacao);
 
     function filtrosAtuais() {
         const filtros = {};
         if (busca.trim()) filtros.busca = busca.trim();
+        if (terminal) filtros.terminal = terminal;
         if (setorId) filtros.setorId = setorId;
         if (situacao) filtros.situacao = situacao;
         return filtros;
@@ -72,10 +79,11 @@ function ListaDeItens() {
         }, 300);
         return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [busca, setorId, situacao]);
+    }, [busca, terminal, setorId, situacao]);
 
     function handleLimparFiltros() {
         setBusca('');
+        setTerminal('');
         setSetorId('');
         setSituacao('');
     }
@@ -88,7 +96,9 @@ function ListaDeItens() {
         const partes = [];
         if (setorId) {
             const setor = setores.find((s) => String(s.id) === String(setorId));
-            if (setor) partes.push(setor.nome);
+            if (setor) partes.push(setor.nomeCompleto ?? setor.nome);
+        } else if (terminal) {
+            partes.push(ROTULOS_TERMINAL[terminal] ?? terminal);
         }
         if (situacao) partes.push(ROTULOS_SITUACAO[situacao] ?? situacao);
         if (busca.trim()) partes.push(`"${busca.trim()}"`);
@@ -182,12 +192,26 @@ function ListaDeItens() {
                         onChange={(e) => setBusca(e.target.value)}
                     />
                 </div>
+                <div className="form-group" style={{ flex: '0 1 170px', minWidth: 150, marginBottom: 0 }}>
+                    <select
+                        className="form-control"
+                        value={terminal}
+                        onChange={(e) => { setTerminal(e.target.value); setSetorId(''); }}
+                    >
+                        <option value="">Todos os terminais</option>
+                        {Object.entries(ROTULOS_TERMINAL).map(([valor, rotulo]) => (
+                            <option key={valor} value={valor}>{rotulo}</option>
+                        ))}
+                    </select>
+                </div>
                 <div className="form-group" style={{ flex: '0 1 200px', minWidth: 160, marginBottom: 0 }}>
                     <select className="form-control" value={setorId} onChange={(e) => setSetorId(e.target.value)}>
                         <option value="">Todos os setores</option>
-                        {setores.map((s) => (
-                            <option key={s.id} value={s.id}>{s.nome}</option>
-                        ))}
+                        {setores
+                            .filter((s) => !terminal || s.terminal === terminal)
+                            .map((s) => (
+                                <option key={s.id} value={s.id}>{s.nomeCompleto ?? s.nome}</option>
+                            ))}
                     </select>
                 </div>
                 <div className="form-group" style={{ flex: '0 1 160px', minWidth: 140, marginBottom: 0 }}>
@@ -243,6 +267,7 @@ function ListaDeItens() {
                                 )}
                                 <th>Código</th>
                                 <th>Descrição</th>
+                                <th>Terminal</th>
                                 <th>Setor</th>
                                 <th>Situação</th>
                                 <th>Etiqueta</th>
@@ -274,6 +299,7 @@ function ListaDeItens() {
                                         </div>
                                     </td>
                                     <td>{item.descricao}</td>
+                                    <td>{item.setorAtual ? (ROTULOS_TERMINAL[item.setorAtual.terminal] ?? item.setorAtual.terminal) : '—'}</td>
                                     <td>{item.setorAtual?.nome ?? '—'}</td>
                                     <td>
                                         <span className={`badge badge-${item.situacaoAtual}`}>
@@ -289,7 +315,7 @@ function ListaDeItens() {
                             ))}
                             {itens.length === 0 && (
                                 <tr>
-                                    <td colSpan={podeExcluir ? 6 : 5} className="table-empty">Nenhum item encontrado</td>
+                                    <td colSpan={podeExcluir ? 7 : 6} className="table-empty">Nenhum item encontrado</td>
                                 </tr>
                             )}
                         </tbody>

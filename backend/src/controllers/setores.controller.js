@@ -1,37 +1,52 @@
 const prisma = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { registrarEvento } = require('../utils/logger');
+const { rotuloTerminal, nomeCompletoSetor } = require('../utils/terminal');
+
+const TERMINAIS_VALIDOS = ['sao_joaquim', 'bom_despacho'];
+
+function comNomeCompleto(setor) {
+    return { ...setor, nomeCompleto: nomeCompletoSetor(setor) };
+}
 
 const listar = asyncHandler(async (req, res) => {
-    const setores = await prisma.setor.findMany({ orderBy: { nome: 'asc' } });
-    res.json(setores);
+    const setores = await prisma.setor.findMany({ orderBy: [{ terminal: 'asc' }, { nome: 'asc' }] });
+    res.json(setores.map(comNomeCompleto));
 });
 
 const criar = asyncHandler(async (req, res) => {
-    const { nome, descricao } = req.body;
+    const { terminal, nome, descricao } = req.body;
     if (!nome) return res.status(400).json({ erro: 'Nome é obrigatório' });
+    if (!terminal || !TERMINAIS_VALIDOS.includes(terminal)) {
+        return res.status(400).json({ erro: 'Terminal é obrigatório (São Joaquim ou Bom Despacho)' });
+    }
 
-    const setor = await prisma.setor.create({ data: { nome, descricao: descricao ?? null } });
+    const setor = await prisma.setor.create({ data: { terminal, nome, descricao: descricao ?? null } });
 
     registrarEvento({
         nivel: 'sucesso',
         origem: req.origemCliente,
         acao: 'criar_setor',
-        mensagem: `${req.usuario.nome} cadastrou o setor "${setor.nome}"`,
+        mensagem: `${req.usuario.nome} cadastrou o setor "${rotuloTerminal(terminal)} — ${setor.nome}"`,
         usuarioId: req.usuario.id,
         usuarioNome: req.usuario.nome,
         rota: 'POST /setores',
     });
 
-    res.status(201).json(setor);
+    res.status(201).json(comNomeCompleto(setor));
 });
 
 const atualizar = asyncHandler(async (req, res) => {
-    const { nome, descricao, ativo } = req.body;
+    const { terminal, nome, descricao, ativo } = req.body;
+
+    if (terminal !== undefined && !TERMINAIS_VALIDOS.includes(terminal)) {
+        return res.status(400).json({ erro: 'Terminal inválido' });
+    }
 
     const setor = await prisma.setor.update({
         where: { id: BigInt(req.params.id) },
         data: {
+            ...(terminal !== undefined ? { terminal } : {}),
             ...(nome !== undefined ? { nome } : {}),
             ...(descricao !== undefined ? { descricao } : {}),
             ...(ativo !== undefined ? { ativo } : {}),
@@ -42,13 +57,13 @@ const atualizar = asyncHandler(async (req, res) => {
         nivel: 'sucesso',
         origem: req.origemCliente,
         acao: 'atualizar_setor',
-        mensagem: `${req.usuario.nome} atualizou o setor "${setor.nome}"`,
+        mensagem: `${req.usuario.nome} atualizou o setor "${rotuloTerminal(setor.terminal)} — ${setor.nome}"`,
         usuarioId: req.usuario.id,
         usuarioNome: req.usuario.nome,
         rota: `PUT /setores/${req.params.id}`,
     });
 
-    res.json(setor);
+    res.json(comNomeCompleto(setor));
 });
 
 // DELETE /setores/:id — só admin (ver rota). Recusa excluir um setor

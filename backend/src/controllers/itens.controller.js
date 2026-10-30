@@ -4,6 +4,7 @@ const prisma = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { proximoNumeroDisponivel } = require('../utils/codigoGerado');
 const { registrarEvento } = require('../utils/logger');
+const { nomeCompletoSetor, ROTULOS_TERMINAL } = require('../utils/terminal');
 
 const ROTULOS_SITUACAO = {
     bom: 'Bom',
@@ -23,11 +24,16 @@ const ROTULOS_SITUACAO = {
 //    agora que muitos itens ficam com codigo = null até a etiqueta
 //    ser impressa (ver codigoGerado.js), mas já têm numeroEtiqueta
 //    física lida/importada.
-function construirFiltro({ setorId, situacao, busca }) {
+function construirFiltro({ setorId, terminal, situacao, busca }) {
     const buscaLimpa = busca?.trim();
 
     return {
         ...(setorId ? { setorAtualId: BigInt(setorId) } : {}),
+        // Filtro por terminal sem setor específico — útil pra ver
+        // "tudo do São Joaquim", por exemplo, sem escolher um
+        // departamento. Ignorado se "setorId" já foi informado (mais
+        // específico).
+        ...(terminal && !setorId ? { setorAtual: { terminal } } : {}),
         ...(situacao ? { situacaoAtual: situacao } : {}),
         ...(buscaLimpa
             ? {
@@ -73,7 +79,9 @@ const exportarXlsx = asyncHandler(async (req, res) => {
         { header: 'Código', key: 'codigo', width: 16 },
         { header: 'Descrição', key: 'descricao', width: 40 },
         { header: 'Categoria', key: 'categoria', width: 20 },
+        { header: 'Terminal', key: 'terminal', width: 18 },
         { header: 'Setor atual', key: 'setor', width: 24 },
+        { header: 'Observações', key: 'observacoes', width: 30 },
         { header: 'Situação', key: 'situacao', width: 18 },
         { header: 'Etiqueta', key: 'etiqueta', width: 14 },
         { header: 'Cadastrado em', key: 'criadoEm', width: 20 },
@@ -84,7 +92,9 @@ const exportarXlsx = asyncHandler(async (req, res) => {
             codigo: item.codigo,
             descricao: item.descricao,
             categoria: item.categoria ?? '',
+            terminal: ROTULOS_TERMINAL[item.setorAtual?.terminal] ?? '',
             setor: item.setorAtual?.nome ?? '',
+            observacoes: item.observacoes ?? '',
             situacao: ROTULOS_SITUACAO[item.situacaoAtual] ?? item.situacaoAtual,
             etiqueta: item.etiquetaImpressa ? 'Impressa' : 'Pendente',
             criadoEm: item.criadoEm,
@@ -150,8 +160,9 @@ const sync = asyncHandler(async (req, res) => {
             patrimonioDuplicado: true,
             descricao: true,
             categoria: true,
+            observacoes: true,
             situacaoAtual: true,
-            setorAtual: { select: { nome: true } },
+            setorAtual: { select: { nome: true, terminal: true } },
         },
     });
 
@@ -163,8 +174,12 @@ const sync = asyncHandler(async (req, res) => {
             patrimonioDuplicado: item.patrimonioDuplicado,
             descricao: item.descricao,
             categoria: item.categoria,
+            observacoes: item.observacoes,
             situacaoAtual: item.situacaoAtual,
-            setorAtual: item.setorAtual?.nome ?? null,
+            // Cache do app é só um texto exibível (ver cache "setores"
+            // no SQLite do app) — não precisa saber do enum Terminal,
+            // só mostrar "Terminal — Setor" já pronto.
+            setorAtual: nomeCompletoSetor(item.setorAtual),
         }))
     );
 });
@@ -245,8 +260,8 @@ const listarHistorico = asyncHandler(async (req, res) => {
         where: { itemId: BigInt(req.params.id) },
         include: {
             usuario: { select: { nome: true } },
-            setorAnterior: { select: { nome: true } },
-            setorNovo: { select: { nome: true } },
+            setorAnterior: { select: { nome: true, terminal: true } },
+            setorNovo: { select: { nome: true, terminal: true } },
         },
         orderBy: { timestampEvento: 'desc' },
     });
@@ -286,7 +301,7 @@ const listarHistorico = asyncHandler(async (req, res) => {
 // bipar essa etiqueta recebe a lista dos itens pra escolher o certo
 // (ver buscarPorCodigo acima).
 const criar = asyncHandler(async (req, res) => {
-    const { descricao, categoria, setorInicialId, situacaoInicial, numeroEtiqueta } = req.body;
+    const { descricao, categoria, observacoes, setorInicialId, situacaoInicial, numeroEtiqueta } = req.body;
 
     if (!descricao) {
         return res.status(400).json({ erro: 'Descrição é obrigatória' });
@@ -307,6 +322,7 @@ const criar = asyncHandler(async (req, res) => {
                 patrimonioDuplicado: duplicado,
                 descricao,
                 categoria: categoria ?? null,
+                observacoes: observacoes ?? null,
                 setorAtualId: setorInicialId ? BigInt(setorInicialId) : null,
                 situacaoAtual: situacaoInicial ?? 'bom',
                 etiquetaImpressa: !!codigo,
@@ -345,13 +361,14 @@ const criar = asyncHandler(async (req, res) => {
 // decisão de arquitetura: sem mecanismo de resolução de conflito
 // para esse tipo de edição).
 const atualizar = asyncHandler(async (req, res) => {
-    const { descricao, categoria } = req.body;
+    const { descricao, categoria, observacoes } = req.body;
 
     const item = await prisma.item.update({
         where: { id: BigInt(req.params.id) },
         data: {
             ...(descricao !== undefined ? { descricao } : {}),
             ...(categoria !== undefined ? { categoria } : {}),
+            ...(observacoes !== undefined ? { observacoes } : {}),
         },
         include: { setorAtual: true },
     });

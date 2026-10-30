@@ -232,6 +232,28 @@ E atualizo o `backend/prisma/schema.sql` pra refletir o estado novo,
 pra ficar documentado (mesmo sem rodar ele de novo, serve de
 referência de "como o banco deveria estar").
 
+Em vez de mandar o `ALTER TABLE` solto na conversa, a partir de agora
+eu também deixo salvo em `backend/prisma/migrations-manuais/`, um
+arquivo por mudança de schema (ex.
+`002_terminal_observacoes.sql`) — mesmo uso do `schema.sql`, só
+roda uma vez, depois do `git pull`:
+```bash
+cat backend/prisma/migrations-manuais/00X_nome-da-migracao.sql | \
+  docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+```
+
+### Migrações já aplicadas (ordem de aplicação)
+
+- `002_terminal_observacoes.sql` — separa **Terminal** (São Joaquim /
+  Bom Despacho) do **Setor** (antes vinham misturados num texto só,
+  ex. "BOM DESPACHO - CCO") e adiciona o campo **Observações** no
+  item. **Atenção**: o backfill assume que todo setor existente segue
+  o padrão "SÃO JOAQUIM - X" / "BOM DESPACHO - X" (como o
+  `importar-levantamento.js` sempre criou); qualquer setor cadastrado
+  manualmente pelo painel fora desse padrão cai em "Bom Despacho" por
+  padrão — depois de rodar, confira a tela Setores e corrija se
+  precisar.
+
 ## Troubleshooting rápido
 
 - **`docker compose ps` mostra o backend reiniciando sem parar** →

@@ -13,6 +13,11 @@ const ROTULOS_SITUACAO = {
     ruim: 'Ruim',
 };
 
+const ROTULOS_TERMINAL = {
+    sao_joaquim: 'São Joaquim',
+    bom_despacho: 'Bom Despacho',
+};
+
 export default function ItemDetalhePage() {
     return (
         <ProtectedRoute>
@@ -32,6 +37,7 @@ function DetalheDoItem() {
     const [editando, setEditando] = useState(false);
     const [descricao, setDescricao] = useState('');
     const [categoria, setCategoria] = useState('');
+    const [observacoes, setObservacoes] = useState('');
     const [excluindo, setExcluindo] = useState(false);
     const [baixandoCsv, setBaixandoCsv] = useState(false);
     const [modalLoteAberto, setModalLoteAberto] = useState(false);
@@ -51,6 +57,7 @@ function DetalheDoItem() {
         setEventos(historico);
         setDescricao(itemAtual.descricao);
         setCategoria(itemAtual.categoria ?? '');
+        setObservacoes(itemAtual.observacoes ?? '');
         setSetorSelecionado(itemAtual.setorAtualId ? String(itemAtual.setorAtualId) : '');
         setSituacaoSelecionada(itemAtual.situacaoAtual ?? 'bom');
     }
@@ -62,7 +69,7 @@ function DetalheDoItem() {
 
     async function salvarEdicao() {
         try {
-            await api.atualizarItem(id, { descricao, categoria: categoria || null });
+            await api.atualizarItem(id, { descricao, categoria: categoria || null, observacoes: observacoes.trim() || null });
             setEditando(false);
             await carregar();
             toast.sucesso('Item atualizado com sucesso.');
@@ -150,6 +157,16 @@ function DetalheDoItem() {
                                 <label className="form-label">Categoria</label>
                                 <input className="form-control" value={categoria} onChange={(e) => setCategoria(e.target.value)} placeholder="Categoria" />
                             </div>
+                            <div className="form-group">
+                                <label className="form-label">Observações</label>
+                                <textarea
+                                    className="form-control"
+                                    rows={3}
+                                    value={observacoes}
+                                    onChange={(e) => setObservacoes(e.target.value)}
+                                    placeholder="Qualquer nota adicional sobre o item"
+                                />
+                            </div>
                             <div style={{ display: 'flex', gap: 8 }}>
                                 <button className="btn btn-primary" onClick={salvarEdicao}>Salvar</button>
                                 <button className="btn btn-secondary" onClick={() => setEditando(false)}>Cancelar</button>
@@ -159,6 +176,11 @@ function DetalheDoItem() {
                         <>
                             <h1 style={{ marginTop: 4, marginBottom: 4 }}>{item.descricao}</h1>
                             {item.categoria && <p className="subtitle">{item.categoria}</p>}
+                            {item.observacoes && (
+                                <p className="form-hint" style={{ marginTop: 4, maxWidth: 560, whiteSpace: 'pre-wrap' }}>
+                                    {item.observacoes}
+                                </p>
+                            )}
                             <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                                 {podeEditar && (
                                     <button className="btn btn-secondary btn-sm" onClick={() => setEditando(true)}>
@@ -192,7 +214,7 @@ function DetalheDoItem() {
                             <select className="form-control" value={setorSelecionado} onChange={(e) => setSetorSelecionado(e.target.value)}>
                                 <option value="">Sem setor</option>
                                 {setores.map((s) => (
-                                    <option key={s.id} value={s.id}>{s.nome}</option>
+                                    <option key={s.id} value={s.id}>{s.nomeCompleto}</option>
                                 ))}
                             </select>
                         </div>
@@ -215,6 +237,10 @@ function DetalheDoItem() {
                     </>
                 ) : (
                     <>
+                        <div className="info-row">
+                            <div className="info-row-label">Terminal</div>
+                            <div className="info-row-value">{ROTULOS_TERMINAL[item.setorAtual?.terminal] ?? '—'}</div>
+                        </div>
                         <div className="info-row">
                             <div className="info-row-label">Setor atual</div>
                             <div className="info-row-value">{item.setorAtual?.nome ?? '—'}</div>
@@ -258,7 +284,7 @@ function DetalheDoItem() {
                             {eventos.map((ev) => (
                                 <tr key={ev.id}>
                                     <td>{new Date(ev.timestampEvento).toLocaleString('pt-BR')}</td>
-                                    <td>{ev.setorNovo?.nome ?? '—'}</td>
+                                    <td>{ev.setorNovo ? `${ROTULOS_TERMINAL[ev.setorNovo.terminal] ?? ev.setorNovo.terminal} — ${ev.setorNovo.nome}` : '—'}</td>
                                     <td>{ev.situacaoNova ? (ROTULOS_SITUACAO[ev.situacaoNova] ?? ev.situacaoNova) : '—'}</td>
                                     <td>{ev.usuario?.nome}</td>
                                 </tr>

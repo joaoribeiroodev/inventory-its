@@ -26,6 +26,7 @@
 
 CREATE TYPE "Papel" AS ENUM ('admin', 'cadastrador', 'operador');
 CREATE TYPE "Situacao" AS ENUM ('bom', 'ruim');
+CREATE TYPE "Terminal" AS ENUM ('sao_joaquim', 'bom_despacho');
 
 CREATE TABLE "usuarios" (
     "id"            BIGSERIAL PRIMARY KEY,
@@ -55,11 +56,16 @@ CREATE TABLE "dispositivos" (
 
 CREATE TABLE "setores" (
     "id"        BIGSERIAL PRIMARY KEY,
+    "terminal"  "Terminal" NOT NULL,
+    -- Só o nome do departamento/sala (ex. "CCO") — o terminal (prédio)
+    -- é o campo acima, separado. O mesmo departamento existe nos dois
+    -- terminais (salas físicas diferentes), por isso a unicidade é
+    -- terminal+nome, não nome sozinho.
     "nome"      VARCHAR(150) NOT NULL,
     "descricao" VARCHAR(255),
     "ativo"     BOOLEAN NOT NULL DEFAULT true,
     "criado_em" TIMESTAMP(3) NOT NULL DEFAULT now(),
-    CONSTRAINT "setores_nome_key" UNIQUE ("nome")
+    CONSTRAINT "setores_terminal_nome_key" UNIQUE ("terminal", "nome")
 );
 
 CREATE TABLE "itens" (
@@ -67,6 +73,7 @@ CREATE TABLE "itens" (
     "codigo"                VARCHAR(30),
     "descricao"             VARCHAR(255) NOT NULL,
     "categoria"             VARCHAR(100),
+    "observacoes"           TEXT,
     "numero_etiqueta"       VARCHAR(30),
     "patrimonio_duplicado"  BOOLEAN NOT NULL DEFAULT false,
     "setor_atual_id"        BIGINT,

@@ -76,14 +76,15 @@ export async function upsertItens(itens) {
     await db.withTransactionAsync(async () => {
         for (const item of itens) {
             await db.runAsync(
-                `INSERT INTO itens (id, codigo, numero_etiqueta, patrimonio_duplicado, descricao, categoria, situacao_atual, setor_atual)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                `INSERT INTO itens (id, codigo, numero_etiqueta, patrimonio_duplicado, descricao, categoria, observacoes, situacao_atual, setor_atual)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                  ON CONFLICT(id) DO UPDATE SET
                     codigo = excluded.codigo,
                     numero_etiqueta = excluded.numero_etiqueta,
                     patrimonio_duplicado = excluded.patrimonio_duplicado,
                     descricao = excluded.descricao,
                     categoria = excluded.categoria,
+                    observacoes = excluded.observacoes,
                     situacao_atual = excluded.situacao_atual,
                     setor_atual = excluded.setor_atual`,
                 [
@@ -93,6 +94,7 @@ export async function upsertItens(itens) {
                     item.patrimonioDuplicado ? 1 : 0,
                     item.descricao,
                     item.categoria,
+                    item.observacoes ?? null,
                     item.situacaoAtual,
                     item.setorAtual,
                 ]
@@ -108,7 +110,11 @@ export async function upsertSetores(setores) {
             await db.runAsync(
                 `INSERT INTO setores (id, nome) VALUES (?, ?)
                  ON CONFLICT(id) DO UPDATE SET nome = excluded.nome`,
-                [setor.id, setor.nome]
+                // "nome" guardado aqui já vem pronto como "Terminal — Setor"
+                // (ver nomeCompleto em setores.controller.js no backend) —
+                // o cache local não precisa saber do terminal separado,
+                // só mostrar os dois juntos no seletor do app.
+                [setor.id, setor.nomeCompleto ?? setor.nome]
             );
         }
     });
@@ -178,14 +184,15 @@ export async function aplicarEventoNoCacheLocal(itemId, { setorNovoNome, situaca
 // confirmada pelo servidor — mesma lógica de aplicarEventoNoCacheLocal,
 // mas pros campos que não passam pela fila de eventos (ver PUT
 // /itens/:id no backend: exige conexão, sem fila offline).
-export async function aplicarEdicaoNoCacheLocal(itemId, { descricao, categoria }) {
+export async function aplicarEdicaoNoCacheLocal(itemId, { descricao, categoria, observacoes }) {
     const db = await getDb();
     await db.runAsync(
         `UPDATE itens SET
             descricao = COALESCE(?, descricao),
-            categoria = ?
+            categoria = ?,
+            observacoes = ?
          WHERE id = ?`,
-        [descricao ?? null, categoria ?? null, String(itemId)]
+        [descricao ?? null, categoria ?? null, observacoes ?? null, String(itemId)]
     );
 }
 

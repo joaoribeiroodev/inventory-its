@@ -54,22 +54,41 @@ async function main() {
     console.log(CONFIRMAR ? '*** MODO CONFIRMAR: vai gravar no banco ***' : 'Modo DRY-RUN (nada será gravado — rode com --confirmar pra valer)');
     console.log('');
 
-    // 1) Garante os setores (um por combinação prédio+departamento)
-    const nomesSetor = [...new Set(linhas.map((l) => `${l.predio} - ${l.departamento}`))].sort();
-    const setorIdPorNome = new Map();
+    // 1) Garante os setores (um por combinação terminal+departamento —
+    // ver migração 002_terminal_observacoes.sql: terminal e nome
+    // (departamento) são campos separados desde então, não mais um
+    // texto combinado "PRÉDIO - DEPARTAMENTO".
+    const PREDIO_PARA_TERMINAL = { 'SÃO JOAQUIM': 'sao_joaquim', 'BOM DESPACHO': 'bom_despacho' };
 
-    for (const nome of nomesSetor) {
-        let setor = await prisma.setor.findUnique({ where: { nome } });
+    const combinacoes = [...new Set(linhas.map((l) => `${l.predio}\u0000${l.departamento}`))]
+        .map((chave) => {
+            const [predio, departamento] = chave.split('\u0000');
+            return { predio, departamento, terminal: PREDIO_PARA_TERMINAL[predio] };
+        })
+        .sort((a, b) => `${a.terminal} ${a.departamento}`.localeCompare(`${b.terminal} ${b.departamento}`));
+
+    const setorIdPorNomeCombinado = new Map(); // chave "PRÉDIO - DEPARTAMENTO" (como linha.predio/departamento vêm da planilha)
+
+    for (const { predio, departamento, terminal } of combinacoes) {
+        if (!terminal) {
+            throw new Error(`Prédio desconhecido na planilha: "${predio}" — adicione em PREDIO_PARA_TERMINAL`);
+        }
+
+        let setor = await prisma.setor.findUnique({
+            where: { terminal_nome: { terminal, nome: departamento } },
+        });
         if (!setor) {
             if (CONFIRMAR) {
-                setor = await prisma.setor.create({ data: { nome } });
+                setor = await prisma.setor.create({ data: { terminal, nome: departamento } });
             } else {
                 setor = { id: `(novo)` };
             }
         }
-        setorIdPorNome.set(nome, setor.id);
+        setorIdPorNomeCombinado.set(`${predio} - ${departamento}`, setor.id);
     }
-    console.log(`Setores: ${nomesSetor.length} distintos (${[...setorIdPorNome.values()].filter((v) => v === '(novo)').length} novos a criar)`);
+    console.log(
+        `Setores: ${combinacoes.length} distintos (${[...setorIdPorNomeCombinado.values()].filter((v) => v === '(novo)').length} novos a criar)`
+    );
 
     // 2) Carrega os códigos já em uso no banco, só pra não duplicar
     // codigo de item com etiqueta física (itens sem etiqueta entram
@@ -86,7 +105,7 @@ async function main() {
 
     for (const linha of linhas) {
         const nomeSetor = `${linha.predio} - ${linha.departamento}`;
-        const setorAtualId = setorIdPorNome.get(nomeSetor);
+        const setorAtualId = setorIdPorNomeCombinado.get(nomeSetor);
 
         const codigo = linha.codigo; // null pra item sem etiqueta física — gerado só na hora de imprimir
 

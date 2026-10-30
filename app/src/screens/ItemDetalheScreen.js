@@ -12,6 +12,7 @@ import { useConnectivity } from '../contexts/ConnectivityContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { api } from '../services/api';
+import { enviarEventosPendentes } from '../services/syncService';
 import Botao from '../components/Botao';
 import Badge from '../components/Badge';
 import Cartao from '../components/Cartao';
@@ -36,6 +37,7 @@ export default function ItemDetalheScreen({ route, navigation }) {
     const [editando, setEditando] = useState(false);
     const [descricaoEdit, setDescricaoEdit] = useState('');
     const [categoriaEdit, setCategoriaEdit] = useState('');
+    const [observacoesEdit, setObservacoesEdit] = useState('');
     const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
     useEffect(() => {
@@ -86,6 +88,23 @@ export default function ItemDetalheScreen({ route, navigation }) {
 
             toast.sucesso('Movimentação registrada — será sincronizada com o servidor.');
             navigation.goBack();
+
+            // Dispara o envio da fila agora mesmo se já estiver online —
+            // sem isso, o evento só saía do aparelho na próxima vez que a
+            // conectividade mudasse de "inalcançável" pra "alcançável"
+            // (ver ConnectivityContext), o que nunca acontece se o
+            // aparelho ficou online o tempo todo. Resultado visível era
+            // a tela de Monitoramento do painel não mostrar nada mesmo
+            // depois de uma movimentação feita com o app online — o
+            // evento ficava preso na fila local até o próximo puxão
+            // manual ou reconexão. Fire-and-forget: falha aqui não é
+            // erro pro usuário, o evento continua seguro na fila e tenta
+            // de novo na próxima sincronização.
+            if (isOnline) {
+                enviarEventosPendentes().catch((err) => {
+                    console.warn('Envio imediato da fila falhou (fica pra próxima sincronização):', err.message);
+                });
+            }
         } catch (err) {
             toast.erro(`Não foi possível registrar a movimentação: ${err.message}`);
         } finally {
@@ -99,6 +118,7 @@ export default function ItemDetalheScreen({ route, navigation }) {
     function iniciarEdicao() {
         setDescricaoEdit(item.descricao);
         setCategoriaEdit(item.categoria ?? '');
+        setObservacoesEdit(item.observacoes ?? '');
         setEditando(true);
     }
 
@@ -108,12 +128,14 @@ export default function ItemDetalheScreen({ route, navigation }) {
             await api.atualizarItem(item.id, {
                 descricao: descricaoEdit,
                 categoria: categoriaEdit || null,
+                observacoes: observacoesEdit.trim() || null,
             });
             await aplicarEdicaoNoCacheLocal(item.id, {
                 descricao: descricaoEdit,
                 categoria: categoriaEdit || null,
+                observacoes: observacoesEdit.trim() || null,
             });
-            setItem({ ...item, descricao: descricaoEdit, categoria: categoriaEdit || null });
+            setItem({ ...item, descricao: descricaoEdit, categoria: categoriaEdit || null, observacoes: observacoesEdit.trim() || null });
             setEditando(false);
             toast.sucesso('Item atualizado com sucesso.');
         } catch (err) {
@@ -144,6 +166,15 @@ export default function ItemDetalheScreen({ route, navigation }) {
                 <Cartao style={{ marginTop: spacing.xs }}>
                     <Campo label="Descrição" value={descricaoEdit} onChangeText={setDescricaoEdit} />
                     <Campo label="Categoria" placeholder="Categoria" value={categoriaEdit} onChangeText={setCategoriaEdit} />
+                    <Campo
+                        label="Observações"
+                        placeholder="Qualquer nota adicional sobre o item"
+                        value={observacoesEdit}
+                        onChangeText={setObservacoesEdit}
+                        multiline
+                        numberOfLines={3}
+                        style={{ minHeight: 80, textAlignVertical: 'top' }}
+                    />
                     <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                         <Botao titulo="Salvar" variante="accent" onPress={salvarEdicao} carregando={salvandoEdicao} style={{ flex: 1 }} />
                         <Botao titulo="Cancelar" variante="secondary" onPress={() => setEditando(false)} disabled={salvandoEdicao} style={{ flex: 1 }} />
@@ -153,6 +184,7 @@ export default function ItemDetalheScreen({ route, navigation }) {
                 <>
                     <Text style={styles.descricao}>{item.descricao}</Text>
                     {item.categoria && <Text style={styles.categoria}>{item.categoria}</Text>}
+                    {item.observacoes && <Text style={styles.observacoes}>{item.observacoes}</Text>}
                     {podeEditar && isOnline && (
                         <Text style={styles.linkEditar} onPress={iniciarEdicao}>
                             Editar
@@ -220,6 +252,7 @@ const styles = StyleSheet.create({
     avisoDuplicado: { ...typography.body, fontSize: 12, color: colors.warning, marginTop: 4, marginBottom: spacing.xs },
     descricao: { ...typography.title, marginBottom: 2 },
     categoria: { fontSize: 14, color: colors.textMuted, marginBottom: spacing.xs },
+    observacoes: { fontSize: 13, color: colors.textMuted, marginBottom: spacing.xs, fontStyle: 'italic' },
     label: { ...typography.label, marginTop: spacing.sm, marginBottom: spacing.xs },
     pickerBorda: {
         borderWidth: 1,

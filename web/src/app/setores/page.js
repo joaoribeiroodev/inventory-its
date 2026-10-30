@@ -7,6 +7,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { api } from '../../services/api';
 
+const TERMINAIS = [
+    { valor: 'sao_joaquim', rotulo: 'São Joaquim' },
+    { valor: 'bom_despacho', rotulo: 'Bom Despacho' },
+];
+
 export default function SetoresPage() {
     return (
         <ProtectedRoute>
@@ -85,7 +90,8 @@ function ListaDeSetores() {
                     <table>
                         <thead>
                             <tr>
-                                <th>Nome</th>
+                                <th>Terminal</th>
+                                <th>Setor</th>
                                 <th>Descrição</th>
                                 <th>Status</th>
                                 {(podeEditar || podeExcluir) && <th></th>}
@@ -94,6 +100,7 @@ function ListaDeSetores() {
                         <tbody>
                             {setores.map((s) => (
                                 <tr key={s.id}>
+                                    <td>{TERMINAIS.find((t) => t.valor === s.terminal)?.rotulo ?? s.terminal}</td>
                                     <td style={{ fontWeight: 600 }}>{s.nome}</td>
                                     <td>{s.descricao ?? '—'}</td>
                                     <td>
@@ -125,7 +132,7 @@ function ListaDeSetores() {
                             ))}
                             {setores.length === 0 && (
                                 <tr>
-                                    <td colSpan={podeEditar || podeExcluir ? 4 : 3} className="table-empty">Nenhum setor cadastrado</td>
+                                    <td colSpan={podeEditar || podeExcluir ? 5 : 4} className="table-empty">Nenhum setor cadastrado</td>
                                 </tr>
                             )}
                         </tbody>
@@ -148,6 +155,7 @@ function ListaDeSetores() {
 }
 
 function ModalNovoSetor({ aberto, onFechar, onCriado }) {
+    const [terminal, setTerminal] = useState(TERMINAIS[0].valor);
     const [nome, setNome] = useState('');
     const [descricao, setDescricao] = useState('');
     const [erro, setErro] = useState(null);
@@ -155,7 +163,7 @@ function ModalNovoSetor({ aberto, onFechar, onCriado }) {
 
     useEffect(() => {
         if (aberto) {
-            setNome(''); setDescricao(''); setErro(null);
+            setTerminal(TERMINAIS[0].valor); setNome(''); setDescricao(''); setErro(null);
         }
     }, [aberto]);
 
@@ -164,7 +172,7 @@ function ModalNovoSetor({ aberto, onFechar, onCriado }) {
         setErro(null);
         setSalvando(true);
         try {
-            await api.criarSetor({ nome, descricao: descricao || null });
+            await api.criarSetor({ terminal, nome, descricao: descricao || null });
             onCriado();
         } catch (err) {
             setErro(err.message);
@@ -177,8 +185,16 @@ function ModalNovoSetor({ aberto, onFechar, onCriado }) {
         <Modal titulo="Novo setor" aberto={aberto} onFechar={onFechar}>
             <form onSubmit={handleSubmit}>
                 <div className="form-group">
-                    <label className="form-label">Nome</label>
-                    <input className="form-control" value={nome} onChange={(e) => setNome(e.target.value)} required />
+                    <label className="form-label">Terminal</label>
+                    <select className="form-control" value={terminal} onChange={(e) => setTerminal(e.target.value)} required>
+                        {TERMINAIS.map((t) => (
+                            <option key={t.valor} value={t.valor}>{t.rotulo}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Setor</label>
+                    <input className="form-control" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: CCO, TI, Financeiro..." required />
                 </div>
                 <div className="form-group">
                     <label className="form-label">Descrição (opcional)</label>
@@ -199,6 +215,7 @@ function ModalNovoSetor({ aberto, onFechar, onCriado }) {
 }
 
 function ModalEditarSetor({ setor, onFechar, onSalvo }) {
+    const [terminal, setTerminal] = useState(TERMINAIS[0].valor);
     const [nome, setNome] = useState('');
     const [descricao, setDescricao] = useState('');
     const [ativo, setAtivo] = useState(true);
@@ -207,6 +224,7 @@ function ModalEditarSetor({ setor, onFechar, onSalvo }) {
 
     useEffect(() => {
         if (setor) {
+            setTerminal(setor.terminal);
             setNome(setor.nome);
             setDescricao(setor.descricao ?? '');
             setAtivo(setor.ativo);
@@ -219,7 +237,7 @@ function ModalEditarSetor({ setor, onFechar, onSalvo }) {
         setErro(null);
         setSalvando(true);
         try {
-            await api.atualizarSetor(setor.id, { nome, descricao: descricao || null, ativo });
+            await api.atualizarSetor(setor.id, { terminal, nome, descricao: descricao || null, ativo });
             onSalvo();
         } catch (err) {
             setErro(err.message);
@@ -232,7 +250,15 @@ function ModalEditarSetor({ setor, onFechar, onSalvo }) {
         <Modal titulo="Editar setor" aberto={!!setor} onFechar={onFechar}>
             <form onSubmit={handleSubmit}>
                 <div className="form-group">
-                    <label className="form-label">Nome</label>
+                    <label className="form-label">Terminal</label>
+                    <select className="form-control" value={terminal} onChange={(e) => setTerminal(e.target.value)} required>
+                        {TERMINAIS.map((t) => (
+                            <option key={t.valor} value={t.valor}>{t.rotulo}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Setor</label>
                     <input className="form-control" value={nome} onChange={(e) => setNome(e.target.value)} required />
                 </div>
                 <div className="form-group">
