@@ -58,7 +58,7 @@ async function main() {
     // ver migração 002_terminal_observacoes.sql: terminal e nome
     // (departamento) são campos separados desde então, não mais um
     // texto combinado "PRÉDIO - DEPARTAMENTO".
-    const PREDIO_PARA_TERMINAL = { 'SÃO JOAQUIM': 'sao_joaquim', 'BOM DESPACHO': 'bom_despacho' };
+    const PREDIO_PARA_TERMINAL = { 'SÃO JOAQUIM': 'sao_joaquim', 'BOM DESPACHO': 'bom_despacho', 'EMBARCAÇÃO': 'ferry_boat' };
 
     const combinacoes = [...new Set(linhas.map((l) => `${l.predio}\u0000${l.departamento}`))]
         .map((chave) => {

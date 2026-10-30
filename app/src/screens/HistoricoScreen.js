@@ -11,6 +11,7 @@ import { colors, spacing, infoSituacao } from '../theme';
 const ROTULOS_TERMINAL = {
     sao_joaquim: 'São Joaquim',
     bom_despacho: 'Bom Despacho',
+    ferry_boat: 'Ferry Boat',
 };
 
 export default function HistoricoScreen({ route }) {

@@ -10,6 +10,7 @@ import { api } from '../../services/api';
 const TERMINAIS = [
     { valor: 'sao_joaquim', rotulo: 'São Joaquim' },
     { valor: 'bom_despacho', rotulo: 'Bom Despacho' },
+    { valor: 'ferry_boat', rotulo: 'Ferry Boat' },
 ];
 
 export default function SetoresPage() {

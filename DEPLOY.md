@@ -252,7 +252,22 @@ cat backend/prisma/migrations-manuais/00X_nome-da-migracao.sql | \
   `importar-levantamento.js` sempre criou); qualquer setor cadastrado
   manualmente pelo painel fora desse padrão cai em "Bom Despacho" por
   padrão — depois de rodar, confira a tela Setores e corrija se
-  precisar.
+  precisar. **Pegadinha em bancos criados pelo Prisma (`db push`)**:
+  a unicidade antiga de `setores.nome` pode existir como ÍNDICE único
+  solto (`CREATE UNIQUE INDEX`), não como constraint de tabela — nesse
+  caso `ALTER TABLE ... DROP CONSTRAINT IF EXISTS "setores_nome_key"`
+  não dá erro mas também não remove nada ("skipping"), e o `UPDATE`
+  que limpa o prefixo do nome continua batendo na mesma unicidade. O
+  arquivo já soltam os dois tipos de objeto (constraint e índice) por
+  segurança.
+- `003_ferry_boat.sql` — adiciona `ferry_boat` ao enum **Terminal**
+  pros setores de embarcação da frota (ex. "EMBARCAÇÃO - FB RIO
+  PARAGUAÇU"), que não são nenhum dos dois prédios físicos e tinham
+  caído em "Bom Despacho" por padrão na migração 002. Precisa rodar
+  em dois passos separados (está documentado no próprio arquivo):
+  primeiro o `ALTER TYPE ... ADD VALUE`, sozinho; só depois o `UPDATE`
+  que move os setores pra "Ferry Boat" e limpa o prefixo
+  "EMBARCAÇÃO - " do nome (já que o terminal virou campo próprio).
 
 ## Troubleshooting rápido
 

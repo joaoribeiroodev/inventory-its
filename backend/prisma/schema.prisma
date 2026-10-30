@@ -32,16 +32,22 @@ enum Situacao {
   ruim
 }
 
-// Os dois terminais físicos da Internacional Travessias (prédios).
-// Antes disso, "Setor.nome" misturava terminal + departamento no
-// mesmo texto (ex. "BOM DESPACHO - CCO" — ver importar-levantamento.js
-// e conversa com o João); virou campo próprio porque 1) o painel
+// Os terminais físicos da Internacional Travessias (prédios), mais
+// "ferry_boat" pras embarcações da frota — que não ficam em nenhum
+// dos dois prédios, então entravam erradas em "Bom Despacho" por
+// padrão na migração 002 (ver 003_ferry_boat.sql e conversa com o
+// João). Antes disso, "Setor.nome" misturava terminal + departamento
+// no mesmo texto (ex. "BOM DESPACHO - CCO" — ver
+// importar-levantamento.js); virou campo próprio porque 1) o painel
 // precisa filtrar/relatar por terminal sem parsear string, e 2) fica
 // explícito que "CCO" do São Joaquim e "CCO" do Bom Despacho são
-// salas físicas diferentes, não o mesmo setor.
+// salas físicas diferentes, não o mesmo setor. Pra embarcação, o
+// "Setor" (Setor.nome) é o nome do próprio barco (ex. "FB Rio
+// Paraguaçu").
 enum Terminal {
   sao_joaquim
   bom_despacho
+  ferry_boat
 }
 
 model Usuario {

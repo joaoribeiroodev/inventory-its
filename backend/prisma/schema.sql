@@ -26,7 +26,7 @@
 
 CREATE TYPE "Papel" AS ENUM ('admin', 'cadastrador', 'operador');
 CREATE TYPE "Situacao" AS ENUM ('bom', 'ruim');
-CREATE TYPE "Terminal" AS ENUM ('sao_joaquim', 'bom_despacho');
+CREATE TYPE "Terminal" AS ENUM ('sao_joaquim', 'bom_despacho', 'ferry_boat');
 
 CREATE TABLE "usuarios" (
     "id"            BIGSERIAL PRIMARY KEY,
