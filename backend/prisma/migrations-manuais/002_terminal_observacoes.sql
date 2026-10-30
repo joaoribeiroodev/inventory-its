@@ -37,11 +37,20 @@ UPDATE "setores" SET "terminal" = CASE
     ELSE 'bom_despacho'::"Terminal" -- ver aviso acima
 END;
 
--- Precisa soltar a constraint de unicidade de "nome" sozinho ANTES
--- de limpar o prefixo: dois setores que viram o mesmo departamento
--- (ex. "CCO" nos dois terminais) violariam "setores_nome_key" no
--- meio do caminho, antes de ela ser trocada pela de terminal+nome.
+-- Precisa soltar a unicidade de "nome" sozinho ANTES de limpar o
+-- prefixo: dois setores que viram o mesmo departamento (ex. "CCO"
+-- nos dois terminais) violariam "setores_nome_key" no meio do
+-- caminho, antes de ela ser trocada pela de terminal+nome.
+--
+-- Dependendo de como o banco foi criado, essa unicidade pode existir
+-- como CONSTRAINT de tabela (schema.sql deste repo, via ALTER TABLE
+-- ... ADD CONSTRAINT) OU como ÍNDICE único solto (padrão do Prisma
+-- para campos "@unique", via CREATE UNIQUE INDEX) — os dois têm o
+-- mesmo nome "setores_nome_key" mas são objetos diferentes no
+-- Postgres, e só um dos dois comandos abaixo realmente remove a
+-- unicidade; o outro é no-op (IF EXISTS). Por isso soltamos os dois.
 ALTER TABLE "setores" DROP CONSTRAINT IF EXISTS "setores_nome_key";
+DROP INDEX IF EXISTS "setores_nome_key";
 
 UPDATE "setores"
 SET "nome" = regexp_replace("nome", '^(SÃO JOAQUIM|BOM DESPACHO) - ', '')
