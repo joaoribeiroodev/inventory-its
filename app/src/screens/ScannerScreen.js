@@ -13,9 +13,19 @@ import { colors, radius, spacing, typography } from '../theme';
 // patrimônio físicas antigas) é bem mais sensível a erro de leitura
 // num único frame do que QR Code — um ângulo ruim ou desfoque troca um
 // dígito e devolve um número que não existe (ou existe, mas é de
-// outro item). Exigir a mesma leitura 2x seguidas filtra esse ruído
-// sem atraso perceptível pro usuário.
-const LEITURAS_NECESSARIAS = 2;
+// outro item). Exigir a mesma leitura 3x seguidas filtra bem mais
+// ruído de frame isolado do que 2x, sem atraso perceptível pro
+// usuário (ainda é questão de frações de segundo na câmera).
+//
+// IMPORTANTE: isso só protege contra uma leitura ruim OCASIONAL. Não
+// protege contra o caso mais perigoso — a câmera decodificar ERRADO
+// de forma CONSISTENTE (ex.: ângulo/luz ruins fazem o decodificador
+// "ler" sempre o mesmo número errado, que passa no checksum do
+// Code-128 por coincidência e não dispara erro nenhum). Pra esse
+// caso, a defesa real é a confirmação visual antes de agir — ver
+// handleQrLido() abaixo, que sempre mostra o código lido pro usuário
+// conferir contra a etiqueta física antes de navegar pro item.
+const LEITURAS_NECESSARIAS = 3;
 
 export default function ScannerScreen({ navigation }) {
     const [permissao, solicitarPermissao] = useCameraPermissions();
@@ -84,14 +94,37 @@ export default function ScannerScreen({ navigation }) {
         }
 
         if (candidatos.length === 1) {
-            navigation.navigate('ItemDetalhe', { id: candidatos[0].id });
-            setTimeout(() => setTravado(false), 1500);
+            const item = candidatos[0];
+            // Confirmação obrigatória antes de abrir o item — a câmera
+            // pode decodificar um código de barras ERRADO de forma
+            // consistente (não é ruído de frame isolado, que já é
+            // filtrado acima pelas leituras repetidas) e ainda assim
+            // passar no checksum do Code-128, resolvendo pra outro item
+            // que existe de verdade no cache. Sem esse passo, o app abria
+            // direto o item errado e uma movimentação registrada ali
+            // ficava incorretamente atribuída a ele. Mostrar o código
+            // lido (não só a descrição do item) é o que permite o
+            // usuário notar a discrepância contra a etiqueta física.
+            Alert.alert(
+                'Confirmar item',
+                `Código lido: "${codigo}"\n\n${item.descricao}${item.setor_atual ? ` — ${item.setor_atual}` : ''}\n\nConfira se o número bate com o impresso na etiqueta física antes de continuar.`,
+                [
+                    { text: 'Cancelar', style: 'cancel', onPress: () => setTravado(false) },
+                    {
+                        text: 'Confirmar',
+                        onPress: () => {
+                            navigation.navigate('ItemDetalhe', { id: item.id });
+                            setTimeout(() => setTravado(false), 1500);
+                        },
+                    },
+                ]
+            );
             return;
         }
 
         Alert.alert(
             'Etiqueta duplicada',
-            'Essa etiqueta está colada em mais de um item. Qual deles é?',
+            `Código lido: "${codigo}"\n\nEssa etiqueta está colada em mais de um item. Qual deles é?`,
             [
                 ...candidatos.map((c) => ({
                     text: `${c.descricao} — ${c.setor_atual ?? 'sem setor'}`,
