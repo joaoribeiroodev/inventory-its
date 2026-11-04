@@ -1,9 +1,14 @@
 const prisma = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { registrarEvento } = require('../utils/logger');
-const { rotuloTerminal, nomeCompletoSetor } = require('../utils/terminal');
+const { rotuloTerminal, nomeCompletoSetor, ROTULOS_TERMINAL } = require('../utils/terminal');
 
-const TERMINAIS_VALIDOS = ['sao_joaquim', 'bom_despacho'];
+// Deriva da mesma fonte usada pro rótulo (ver utils/terminal.js), pra
+// nunca mais ficar desatualizado quando um terminal novo for
+// adicionado ao enum (aconteceu com "ferry_boat" — essa lista tinha
+// ficado com só os dois primeiros valores, e criar/editar um setor de
+// embarcação pelo painel dava 400 "Terminal inválido").
+const TERMINAIS_VALIDOS = Object.keys(ROTULOS_TERMINAL);
 
 function comNomeCompleto(setor) {
     return { ...setor, nomeCompleto: nomeCompletoSetor(setor) };
@@ -86,7 +91,7 @@ const excluir = asyncHandler(async (req, res) => {
             nivel: 'erro',
             origem: req.origemCliente,
             acao: 'excluir_setor',
-            mensagem: `Falha ao excluir o setor "${setor.nome}": ${mensagem}`,
+            mensagem: `Falha ao excluir o setor "${nomeCompletoSetor(setor)}": ${mensagem}`,
             usuarioId: req.usuario.id,
             usuarioNome: req.usuario.nome,
             rota: `DELETE /setores/${req.params.id}`,
@@ -104,7 +109,7 @@ const excluir = asyncHandler(async (req, res) => {
         nivel: 'sucesso',
         origem: req.origemCliente,
         acao: 'excluir_setor',
-        mensagem: `${req.usuario.nome} excluiu o setor "${setor.nome}"`,
+        mensagem: `${req.usuario.nome} excluiu o setor "${nomeCompletoSetor(setor)}"`,
         usuarioId: req.usuario.id,
         usuarioNome: req.usuario.nome,
         rota: `DELETE /setores/${req.params.id}`,

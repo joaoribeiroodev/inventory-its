@@ -341,13 +341,15 @@ const criar = asyncHandler(async (req, res) => {
         return novoItem;
     });
 
+    const localItem = item.setorAtual ? ` em "${nomeCompletoSetor(item.setorAtual)}"` : '';
+
     registrarEvento({
         nivel: item.patrimonioDuplicado ? 'aviso' : 'sucesso',
         origem: req.origemCliente,
         acao: 'criar_item',
         mensagem: item.patrimonioDuplicado
-            ? `${req.usuario.nome} cadastrou "${item.descricao}" com etiqueta "${item.codigo}" já usada em outro item (patrimônio duplicado)`
-            : `${req.usuario.nome} cadastrou o item "${item.descricao}"`,
+            ? `${req.usuario.nome} cadastrou "${item.descricao}"${localItem} com etiqueta "${item.codigo}" já usada em outro item (patrimônio duplicado)`
+            : `${req.usuario.nome} cadastrou o item "${item.descricao}"${localItem}`,
         usuarioId: req.usuario.id,
         usuarioNome: req.usuario.nome,
         rota: 'POST /itens',
@@ -377,7 +379,9 @@ const atualizar = asyncHandler(async (req, res) => {
         nivel: 'sucesso',
         origem: req.origemCliente,
         acao: 'atualizar_item',
-        mensagem: `${req.usuario.nome} editou o cadastro do item "${item.descricao}"`,
+        mensagem: `${req.usuario.nome} editou o cadastro do item "${item.descricao}"${
+            item.setorAtual ? ` (${nomeCompletoSetor(item.setorAtual)})` : ''
+        }`,
         usuarioId: req.usuario.id,
         usuarioNome: req.usuario.nome,
         rota: `PUT /itens/${req.params.id}`,
@@ -450,18 +454,20 @@ const registrarMovimentacao = asyncHandler(async (req, res) => {
 const excluir = asyncHandler(async (req, res) => {
     const itemId = BigInt(req.params.id);
 
-    const item = await prisma.item.findUnique({ where: { id: itemId } });
+    const item = await prisma.item.findUnique({ where: { id: itemId }, include: { setorAtual: true } });
     if (!item) {
         return res.status(404).json({ erro: 'Item não encontrado' });
     }
 
     await prisma.item.delete({ where: { id: itemId } });
 
+    const localItem = item.setorAtual ? ` (estava em "${nomeCompletoSetor(item.setorAtual)}")` : '';
+
     registrarEvento({
         nivel: 'sucesso',
         origem: req.origemCliente,
         acao: 'excluir_item',
-        mensagem: `${req.usuario.nome} excluiu o item "${item.descricao}"`,
+        mensagem: `${req.usuario.nome} excluiu o item "${item.descricao}"${item.codigo ? ` (código ${item.codigo})` : ''}${localItem}`,
         usuarioId: req.usuario.id,
         usuarioNome: req.usuario.nome,
         rota: `DELETE /itens/${req.params.id}`,
@@ -482,13 +488,28 @@ const excluirVarios = asyncHandler(async (req, res) => {
     }
 
     const ids = itemIds.map((id) => BigInt(id));
+
+    // Busca os itens ANTES de excluir — depois do delete não tem mais
+    // como saber quais eram, e sem isso o log só dizia "excluiu N
+    // itens", sem rastro de QUAIS (ruim pra auditoria de uma exclusão
+    // em lote, que é justamente a mais arriscada de reverter).
+    const itensParaExcluir = await prisma.item.findMany({
+        where: { id: { in: ids } },
+        include: { setorAtual: true },
+    });
+
     const resultado = await prisma.item.deleteMany({ where: { id: { in: ids } } });
+
+    const listaDetalhada = itensParaExcluir
+        .map((i) => `#${i.id} — "${i.descricao}"${i.codigo ? ` (código ${i.codigo})` : ''}${i.setorAtual ? ` — ${nomeCompletoSetor(i.setorAtual)}` : ''}`)
+        .join('\n');
 
     registrarEvento({
         nivel: 'sucesso',
         origem: req.origemCliente,
         acao: 'excluir_itens_lote',
         mensagem: `${req.usuario.nome} excluiu ${resultado.count} item(ns) em lote`,
+        detalhes: listaDetalhada || null,
         usuarioId: req.usuario.id,
         usuarioNome: req.usuario.nome,
         rota: 'POST /itens/excluir-lote',

@@ -167,6 +167,7 @@ function Monitoramento() {
                                 <th>Origem</th>
                                 <th>Ação</th>
                                 <th>Mensagem</th>
+                                <th>Onde</th>
                                 <th>Usuário</th>
                             </tr>
                         </thead>
@@ -188,12 +189,15 @@ function Monitoramento() {
                                         </td>
                                         <td style={{ fontSize: 13 }}>{log.acao}</td>
                                         <td style={{ fontSize: 13 }}>{log.mensagem}</td>
+                                        <td style={{ fontSize: 12, whiteSpace: 'nowrap', color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>
+                                            {log.rota ?? '—'}
+                                        </td>
                                         <td style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{log.usuarioNome ?? '—'}</td>
                                     </tr>
                                     {expandidoId === log.id && log.detalhes && (
                                         <tr>
-                                            <td colSpan={6}>
-                                                <div className="log-linha-detalhes">{log.detalhes}</div>
+                                            <td colSpan={7}>
+                                                <div className="log-linha-detalhes" style={{ whiteSpace: 'pre-wrap' }}>{log.detalhes}</div>
                                             </td>
                                         </tr>
                                     )}
@@ -201,7 +205,7 @@ function Monitoramento() {
                             ))}
                             {itens.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="table-empty">Nenhum evento encontrado com esses filtros</td>
+                                    <td colSpan={7} className="table-empty">Nenhum evento encontrado com esses filtros</td>
                                 </tr>
                             )}
                         </tbody>
