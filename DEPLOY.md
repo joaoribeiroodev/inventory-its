@@ -268,6 +268,19 @@ cat backend/prisma/migrations-manuais/00X_nome-da-migracao.sql | \
   primeiro o `ALTER TYPE ... ADD VALUE`, sozinho; só depois o `UPDATE`
   que move os setores pra "Ferry Boat" e limpa o prefixo
   "EMBARCAÇÃO - " do nome (já que o terminal virou campo próprio).
+- `004_logs_sistema.sql` — cria a tabela `logs_sistema` (tela de
+  Monitoramento), que nunca tinha sido aplicada de fato no banco de
+  produção desde que a funcionalidade foi criada — o schema.prisma/
+  schema.sql já tinham o model havia semanas, mas como a aplicação em
+  produção é manual (via schema.sql + migrações, não `prisma db
+  push`), ninguém tinha rodado essa parte específica. Até rodar essa
+  migração, toda tentativa de gravar OU listar logs falha
+  silenciosamente (`registrarEvento()` nunca lança erro de propósito
+  — ver `utils/logger.js`) e a tela de Monitoramento fica vazia sem
+  nenhum aviso visível. Se um banco novo um dia der esse mesmo erro
+  (`The table "public.logs_sistema" does not exist`), é sinal de que
+  o `schema.sql` completo não foi aplicado do zero — rodar essa
+  migração resolve sem precisar reaplicar o schema inteiro.
 
 ## Troubleshooting rápido
 
